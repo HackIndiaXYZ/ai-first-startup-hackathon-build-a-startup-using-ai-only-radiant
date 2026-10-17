@@ -71,3 +71,10 @@
 3. Added dual handling in `/api/auth/demo` and `/api/auth/signout` to return JSON for `fetch` requests or 302 redirect for browser navigations.
 
 echo "- Phase 2 bug: AI created is_shop_owner() before the shops table existed (Postgres error 42P01). Fixed by adding 'set check_function_bodies = off;' at the top of 001_init.sql." >> AI_USAGE.md
+
+cat >> AI_USAGE.md <<'EOF'
+- Phase 2 bug 2: AI hardcoded a demo password in a public repo; replaced with env vars and a random password.
+- Phase 2 bug 3: live demo returned "fetch failed" because the Supabase URL stored on Vercel was bad (local was fine). Fixed by re-adding the env var from the working .env.local. The UI error message blamed the seed, which was misleading.
+EOF
+git add -A && git commit -m "AI: log Phase 2 bugs" && git push- Phase 2 bug 2: AI hardcoded a demo password in a public repo; replaced with env vars and a random password.
+- Phase 2 bug 3: live demo returned "fetch failed" because the Supabase URL stored on Vercel was bad (local was fine). Fixed by re-adding the env var from the working .env.local. The UI error message blamed the seed, which was misleading.
