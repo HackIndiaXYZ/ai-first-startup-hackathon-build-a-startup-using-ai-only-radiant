@@ -27,3 +27,47 @@
 1. Configured theme tokens exclusively within `src/app/globals.css` using native Tailwind v4 `@theme inline` mappings and `oklch(...)` variables matching shadcn specifications.
 2. Replaced the custom stateful hook with `useReducedMotion()` directly imported from `motion/react`, eliminating the cascading re-render lint error.
 3. Created `src/components/mic-button.tsx` with a `listening` prop and rendered the animated pulse rings conditionally only when `listening && !shouldReduceMotion`.
+
+## Phase 2: Supabase Schema, RLS, Auth Helpers, Seed & Demo Sign-in
+
+### What was built
+- Installed `@supabase/supabase-js`, `@supabase/ssr`, and `tsx` for script execution.
+- Database migration file (`supabase/migrations/001_init.sql`) defining the full schema from `docs/BRIEF.md`:
+  - 6 tables: `shops`, `customers`, `products`, `transactions`, `transaction_items`, `agent_logs`.
+  - Performance indexes on `owner_id`, `shop_id`, `customer_id`, `transaction_id`, and `created_at`.
+  - Security definer helper `public.is_shop_owner(p_shop_id uuid)` and granular RLS policies for `select`, `insert`, `update`, `delete`.
+  - `customer_balances` view defined with `security_invoker = true` calculating net customer udhar ($total - paid$).
+- Supabase client helpers in `src/lib/supabase/`:
+  - `client.ts`: Browser client using `@supabase/ssr`.
+  - `server.ts`: Server client using `@supabase/ssr` with Next.js App Router `cookies()`.
+  - `admin.ts`: Service role client strictly isolated to server/script environments.
+- Database seed script (`scripts/seed.ts` via `npm run seed`):
+  - Provisions demo user in Supabase `auth.users` (`demo@dukaanai.in`).
+  - Creates "Sharma Kirana Store" with GSTIN and Hindi language setting.
+  - Seeds 15 realistic Indian customers with phone numbers and localized notes.
+  - Seeds 30 realistic grocery products with Hindi/English names, units, prices, and low-stock triggers.
+  - Generates 90 days of transactions (credit sales, repayments, cash sales) with Hinglish voice transcripts and item links.
+- Demo auth route handlers:
+  - `src/app/api/auth/demo/route.ts`: signs in as the demo user and sets session cookies.
+  - `src/app/api/auth/signout/route.ts`: signs out and clears session cookies.
+- Updated `src/app/page.tsx`:
+  - "Try demo" ("डेमो आज़माएँ") button with loading feedback.
+  - User status & shop name badge when authenticated.
+  - Live dynamic queries for today's sales and total udhar.
+- Updated `.env.example` with `DEMO_USER_EMAIL` and `DEMO_USER_PASSWORD`.
+- Verification: `npm run lint` (0 errors) and `npm run build` (successful compilation).
+
+### Prompt used
+> /plan Phase 2. Read AGENTS.md, docs/BRIEF.md and the existing code first, and reuse the existing Supabase helpers instead of duplicating them. Write supabase/migrations/001_init.sql with all tables from docs/BRIEF.md, RLS so users only access their own shop's rows, and the customer_balances view. I will paste the SQL into the Supabase SQL Editor myself, so give me exact steps. Then add Supabase auth (email + password) with a server-side client helper. Add scripts/seed.ts: 15 realistic Indian customers, 30 grocery products, 3 months of transactions, and a demo account. Add a "Try demo" button that signs in as the demo user through a server route. Read secrets only from .env.local, never print or commit them, and never use the service role key in client code. Tell me exactly which env vars the seed needs. Show the plan first and append to AI_USAGE.md.
+
+### What AI got wrong
+1. **Postgres View RLS bypass**: Standard Postgres views default to `security definer` behavior, which would bypass customer table RLS for unprivileged users.
+2. **Shell pathing for `tsx`**: In this environment, global `npx` was not on standard system PATH because Node v22 is in `~/.nvm/versions/node/v22.23.3/bin`.
+3. **Demo route client-only expectation**: Early draft only anticipated JSON requests, which would fail if invoked directly via browser redirect.
+
+### How it was fixed
+1. Specified `WITH (security_invoker = true)` on the `customer_balances` view so that all queries against the view strictly honor underlying row-level security.
+2. Added `tsx` to `devDependencies` and created `"seed": "tsx scripts/seed.ts"` in `package.json`, ensuring standalone script execution works out of the box with `npm run seed`.
+3. Added dual handling in `/api/auth/demo` and `/api/auth/signout` to return JSON for `fetch` requests or 302 redirect for browser navigations.
+
+echo "- Phase 2 bug: AI created is_shop_owner() before the shops table existed (Postgres error 42P01). Fixed by adding 'set check_function_bodies = off;' at the top of 001_init.sql." >> AI_USAGE.md

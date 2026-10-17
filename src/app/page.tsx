@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { MicButton } from "@/components/mic-button";
+import { createClient } from "@/lib/supabase/client";
 
 /* ────────────────────────────────────────────
    Inline SVG icons (no heavy icon bundle)
@@ -64,23 +65,179 @@ function SettingsIcon({ className }: { className?: string }) {
   );
 }
 
+function SparklesIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
+    </svg>
+  );
+}
+
 /* ────────────────────────────────────────────
    Home Page
    ──────────────────────────────────────────── */
 export default function Home() {
   const [isListening, setIsListening] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [shopName, setShopName] = useState<string | null>(null);
+  const [todaySales, setTodaySales] = useState<number>(0);
+  const [totalUdhar, setTotalUdhar] = useState<number>(0);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  // Load session & shop info on mount
+  useEffect(() => {
+    async function loadSession() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          setUserEmail(user.email ?? null);
+
+          // Fetch shop
+          const { data: shop } = await supabase
+            .from("shops")
+            .select("id, name")
+            .eq("owner_id", user.id)
+            .maybeSingle();
+
+          if (shop) {
+            setShopName(shop.name);
+
+            // Fetch total udhar from customer_balances view
+            const { data: balances } = await supabase
+              .from("customer_balances")
+              .select("balance")
+              .eq("shop_id", shop.id);
+
+            if (balances) {
+              const udharSum = balances.reduce(
+                (acc, b) => acc + (Number(b.balance) > 0 ? Number(b.balance) : 0),
+                0
+              );
+              setTotalUdhar(Math.round(udharSum));
+            }
+
+            // Fetch today's sales
+            const startOfToday = new Date();
+            startOfToday.setHours(0, 0, 0, 0);
+
+            const { data: sales } = await supabase
+              .from("transactions")
+              .select("total_amount")
+              .eq("shop_id", shop.id)
+              .eq("type", "sale")
+              .gte("created_at", startOfToday.toISOString());
+
+            if (sales) {
+              const salesSum = sales.reduce(
+                (acc, s) => acc + Number(s.total_amount),
+                0
+              );
+              setTodaySales(Math.round(salesSum));
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load user session:", err);
+      }
+    }
+
+    loadSession();
+  }, []);
+
+  const handleTryDemo = () => {
+    setErrorMsg(null);
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/auth/demo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setErrorMsg(data.hint || data.error || "Demo login failed");
+        } else {
+          window.location.reload();
+        }
+      } catch {
+        setErrorMsg("Failed to connect to demo auth");
+      }
+    });
+  };
+
+  const handleSignOut = () => {
+    startTransition(async () => {
+      await fetch("/api/auth/signout", { method: "POST" });
+      window.location.reload();
+    });
+  };
 
   return (
     <div className="flex flex-1 flex-col min-h-[100dvh]">
       {/* ── Top bar ── */}
-      <header className="flex items-center justify-between px-5 py-4">
-        <h1 className="text-xl font-bold tracking-tight text-primary">
-          DukaanAI
-        </h1>
-        <span className="text-xs font-medium text-muted-foreground rounded-full bg-secondary px-2.5 py-1">
-          Beta
-        </span>
+      <header className="flex items-center justify-between px-5 py-4 border-b border-border/40">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-primary">
+              DukaanAI
+            </h1>
+            <span className="text-xs font-medium text-muted-foreground rounded-full bg-secondary px-2.5 py-0.5">
+              Beta
+            </span>
+          </div>
+          {shopName ? (
+            <span className="text-xs font-medium text-foreground/80 mt-0.5">
+              {shopName}
+            </span>
+          ) : null}
+        </div>
+
+        <div>
+          {userEmail ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground hidden sm:inline max-w-[140px] truncate">
+                {userEmail}
+              </span>
+              <button
+                onClick={handleSignOut}
+                disabled={isPending}
+                className="text-xs font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border transition-colors min-h-[36px]"
+              >
+                लॉग आउट
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleTryDemo}
+              disabled={isPending}
+              id="try-demo-btn"
+              className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 px-3.5 py-2 rounded-xl shadow-sm transition-all min-h-[44px] active:scale-95"
+            >
+              <SparklesIcon className="w-3.5 h-3.5 text-amber-300" />
+              <span>{isPending ? "लॉगिन हो रहा है..." : "Try demo"}</span>
+            </button>
+          )}
+        </div>
       </header>
+
+      {/* Error message banner if demo login needs seed */}
+      {errorMsg && (
+        <div className="mx-4 mt-3 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive text-center">
+          {errorMsg}
+        </div>
+      )}
 
       {/* ── Main content ── */}
       <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 pb-24">
@@ -114,13 +271,17 @@ export default function Home() {
         {/* Quick info cards */}
         <div className="grid grid-cols-2 gap-3 w-full max-w-xs mt-2">
           <div className="flex flex-col items-center gap-1 rounded-xl bg-card border border-border p-4 shadow-sm">
-            <span className="text-2xl font-bold text-primary">₹0</span>
+            <span className="text-2xl font-bold text-primary">
+              ₹{todaySales.toLocaleString("en-IN")}
+            </span>
             <span className="text-xs text-muted-foreground">
               आज की बिक्री
             </span>
           </div>
           <div className="flex flex-col items-center gap-1 rounded-xl bg-card border border-border p-4 shadow-sm">
-            <span className="text-2xl font-bold text-udhar">₹0</span>
+            <span className="text-2xl font-bold text-udhar">
+              ₹{totalUdhar.toLocaleString("en-IN")}
+            </span>
             <span className="text-xs text-muted-foreground">कुल उधार</span>
           </div>
         </div>
