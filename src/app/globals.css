@@ -1,0 +1,147 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* DukaanAI custom semantic colors */
+  --color-udhar: var(--udhar);
+  --color-paid: var(--paid);
+}
+
+/* ============================================================
+   DukaanAI App Surface — Warm off-white, violet primary
+   Amber for udhar (credit), green for paid
+   ============================================================ */
+
+:root {
+  /* Core surface */
+  --background: oklch(0.97 0.005 80);       /* warm off-white with subtle warmth */
+  --foreground: oklch(0.15 0.01 260);        /* near-black with a hint of cool */
+
+  /* Cards */
+  --card: oklch(1 0 0);                      /* pure white cards */
+  --card-foreground: oklch(0.15 0.01 260);
+
+  /* Popovers */
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.01 260);
+
+  /* Primary — violet */
+  --primary: oklch(0.55 0.24 285);           /* vibrant violet */
+  --primary-foreground: oklch(0.99 0 0);     /* white on violet */
+
+  /* Secondary */
+  --secondary: oklch(0.95 0.01 285);         /* very light violet wash */
+  --secondary-foreground: oklch(0.25 0.05 285);
+
+  /* Muted */
+  --muted: oklch(0.94 0.005 80);             /* warm gray */
+  --muted-foreground: oklch(0.50 0.01 260);
+
+  /* Accent */
+  --accent: oklch(0.94 0.02 285);            /* light violet tint */
+  --accent-foreground: oklch(0.25 0.05 285);
+
+  /* Destructive */
+  --destructive: oklch(0.58 0.22 27);
+
+  /* Borders & inputs */
+  --border: oklch(0.90 0.005 80);            /* warm border */
+  --input: oklch(0.90 0.005 80);
+  --ring: oklch(0.55 0.24 285);              /* focus ring = violet */
+
+  /* Charts */
+  --chart-1: oklch(0.55 0.24 285);           /* violet */
+  --chart-2: oklch(0.72 0.18 145);           /* green */
+  --chart-3: oklch(0.75 0.16 55);            /* amber */
+  --chart-4: oklch(0.65 0.20 285);           /* lighter violet */
+  --chart-5: oklch(0.50 0.10 260);           /* slate */
+
+  --radius: 0.75rem;
+
+  /* Sidebar */
+  --sidebar: oklch(0.97 0.005 80);
+  --sidebar-foreground: oklch(0.15 0.01 260);
+  --sidebar-primary: oklch(0.55 0.24 285);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.94 0.02 285);
+  --sidebar-accent-foreground: oklch(0.25 0.05 285);
+  --sidebar-border: oklch(0.90 0.005 80);
+  --sidebar-ring: oklch(0.55 0.24 285);
+
+  /* DukaanAI semantic colors */
+  --udhar: oklch(0.75 0.18 65);              /* amber — credit/udhar */
+  --paid: oklch(0.62 0.19 150);              /* green — paid */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Reduced motion: disable all transitions and animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
