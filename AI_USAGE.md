@@ -236,4 +236,324 @@
 2. Moved `onEndRef.current` assignment inside `useEffect(() => { onEndRef.current = options?.onEnd; }, [options?.onEnd])`.
 3. Updated unit tests in `tests/app-ui.test.ts` to assert that server internals (`.env`, `DEMO_USER_PASSWORD`, `seed`) are never present in visitor constants, and technical errors are logged on the server.
 
+## Landing Page Phase: Cinematic Main Website, GSAP Scroll Story, Component Phone Preview & Bundle Isolation
+
+### What was built
+- **Cinematic Landing Page (`src/app/page.tsx`)**:
+  - Dark midnight background (`#070611`), ambient radial violet/indigo glows, glassmorphism cards (`backdrop-blur-md`, subtle borders), and saffron cultural accents (`#F97316` / `#FF9933`).
+  - Bilingual Hindi + English typography with high contrast (WCAG AA) and mobile-first responsive layout.
+  - Replaced the placeholder home screen mic and ₹0 cards at `/`.
+- **7 Core Required Landing Sections**:
+  1. **Hero Section (`src/components/landing/hero-section.tsx`)**: Tagline *"Talk to your shop. DukaanAI keeps the books."* ("अपनी दुकान से बात करो। DukaanAI हिसाब रखेगा।"), trust badges, value proposition, and primary CTAs.
+  2. **Hero Visual (`src/components/landing/hero-visual.tsx`)**: Glowing voice orb with animated SVG audio waveform, pulsating ambient halos, and floating glass cards (Ramesh credit sale ₹500, Atta stock +10, WhatsApp reminder pill). Features an optional Spline 3D slot via `NEXT_PUBLIC_SPLINE_SCENE_URL` dynamically imported (`ssr: false`) with strict low-power hardware limits (`navigator.hardwareConcurrency <= 4`, `deviceMemory <= 4`, `prefers-reduced-motion`) falling back gracefully to the CSS visual.
+  3. **Problem Section (`src/components/landing/problem-section.tsx`)**: Contrast between traditional Kirana struggles (paper bahi-khata books, ₹35,000+ forgotten udhar, complex English accounting software) and DukaanAI's voice-first solution.
+  4. **How It Works (`src/components/landing/workflow-steps.tsx`)**: 3 animated steps: (1) Talk (बोलो), (2) Confirm (जांचें), (3) Ledger & WhatsApp Reminder (खाता अपडेट और रिमाइंडर).
+  5. **Static Phone-Frame Preview (`src/components/landing/phone-preview-card.tsx`)**: Authentic Kirana phone frame built entirely from pure components (no `<iframe>`), showcasing real AI Confirmation Card UI (Ramesh credit sale, confidence badge, summary, items, and >=48px Confirm/Edit/Cancel action buttons).
+  6. **Features Grid (`src/components/landing/features-grid.tsx`)**: 6 core Kirana capabilities (Hinglish Voice AI, Zero-Typing Khata, Instant WhatsApp Reminders, Live Inventory Tracking, GST-Ready Invoices, Morning Audio Briefing).
+  7. **Stat Strip (`src/components/landing/stat-strip.tsx`)**: Key impact metrics (10s entry time, 0 udhar forgotten, 100% Hinglish accuracy, 4.2x faster settlements) clearly labelled with an explicit illustrative footnote (`*`).
+  8. **Grand CTA & Footer (`src/components/landing/cta-section.tsx` & `src/components/landing/landing-footer.tsx`)**: Final conversion banner, public GitHub repo link, HackIndia 2026 AI-First Startup Hackathon attribution, and semantic navigation links.
+- **Dynamic Auth Flow (`src/components/landing/demo-auth-button.tsx`)**:
+  - Reads client auth state using `supabase.auth.getUser()`.
+  - Unauthenticated: displays "डेमो आज़माएँ / Try demo", triggering `POST /api/auth/demo` and redirecting directly to `/app`.
+  - Authenticated: displays "दुकान में जाएं / Go to Shop" linking to `/app`.
+  - Wrapped in `<Suspense fallback={<DemoButtonSkeleton />}>` for Next.js 16 Cache Components compliance.
+- **Motion & Strict Bundle Isolation**:
+  - Lenis smooth scrolling and GSAP ScrollTrigger integrated in `src/components/landing/smooth-scroll.tsx`, mounted strictly on `/`.
+  - Zero contamination of `/app`, `/api`, or `src/lib` bundles with GSAP, Lenis, or Spline libraries.
+- **Metadata, OpenGraph & Theme-Color (`src/app/layout.tsx`)**:
+  - Comprehensive OpenGraph and Twitter card metadata for DukaanAI.
+  - Viewport themeColor set to dark midnight `#070611`.
+- **Test Suite (`tests/landing-page.test.ts`)**:
+  - 11 automated tests asserting 7 sections, bilingual copy, tagline, component phone preview (no iframe), stat footnote, auth button flow, low-power Spline checks, metadata, and strict library isolation from `/app`.
+  - Total test suite now stands at 100 passing tests.
+
+### Prompt used
+> /plan Landing page phase. You are on git branch "landing". Read AGENTS.md, docs/BRIEF.md and the existing code first. Replace the placeholder home page at / with the real main website. Do NOT change anything under /app, /api or src/lib.
+> Flow: / (website) -> "डेमो आज़माएँ / Try demo" signs in as the demo user via the existing demo route and goes to /app. If the user is already signed in, show "दुकान में जाएं / Go to Shop" instead. Remove the old placeholder mic, the ₹0 cards and any control that looks interactive but does nothing.
+> Design: dark midnight background, violet/indigo glow, glassmorphism cards, one saffron accent, Hindi + English copy, large readable type, mobile-first. Sections: (1) hero with the tagline "Talk to your shop. DukaanAI keeps the books." and a hero visual; (2) the problem (paper udhar notebooks, forgotten money, English-only apps); (3) how it works in 3 animated steps: Talk -> Confirm -> Ledger + WhatsApp reminder; (4) a static phone-frame preview of the real confirmation card, built from components, not an iframe; (5) features grid; (6) stat strip, with any numbers clearly labelled as illustrative; (7) final CTA + footer with a GitHub link and "Built for HackIndia 2026 AI-First Startup Hackathon".
+> Hero visual: build the default with pure CSS/SVG + Motion: a glowing voice orb with an animated waveform and floating glass ledger cards. Add an OPTIONAL Spline slot: if NEXT_PUBLIC_SPLINE_SCENE_URL is set, lazy-load @splinetool/react-spline (dynamic import, ssr:false) with the CSS visual as the poster/fallback; if unset or load fails, keep the CSS visual. Skip the 3D scene on low-power devices (navigator.hardwareConcurrency <= 4 or deviceMemory <= 4, or prefers-reduced-motion).
+> Motion: GSAP ScrollTrigger + Lenis for the scroll story, mounted ONLY on the landing route so /app bundles stay light. Respect prefers-reduced-motion everywhere. Keep Lighthouse mobile performance >= 80 on /.
+> Add proper metadata, OG tags, favicon and theme-color. Add no libraries beyond gsap, lenis and @splinetool/react-spline. Next.js 16 has Cache Components on: read node_modules/next/dist/docs/ first and wrap anything that reads cookies/auth in <Suspense>. Show the plan first. At the end run npm run lint, npm test AND npm run build and show the output. Append to AI_USAGE.md.
+
+### What AI got wrong
+1. **ESLint Cascading Re-render (`react-hooks/set-state-in-effect`) in HeroVisual**: Attempted to evaluate hardware limits inside `useEffect` and synchronously call `setCanRender3D(true)`, which triggered an ESLint error under React 19 rules.
+2. **Missing `useReducedMotion` import**: During the initial refactor to eliminate `useEffect`, the import of `useReducedMotion` was omitted, causing TypeScript compilation error TS2304 in `CssHeroVisual`.
+
+### How it was fixed
+1. Refactored client-side 3D capability detection to `useSyncExternalStore` subscribing to the `prefers-reduced-motion` media query and evaluating `navigator.hardwareConcurrency` and `deviceMemory` synchronously without cascading re-renders.
+2. Restored `useReducedMotion` import from `motion/react` in `hero-visual.tsx`.
+
+## Responsive Landing Page Phase: Fluid Layout, Multi-Width (360/768/1280/1920px), Clamp Typography, 48px Touch Targets & Focus Styles
+
+### What was built
+- **Fluid Layout & Max-Width Standard (`max-w-[1200px]`)**:
+  - Replaced `max-w-7xl` across all landing page sections (`landing-navbar.tsx`, `hero-section.tsx`, `workflow-steps.tsx`, `phone-preview-card.tsx`, `problem-section.tsx`, `features-grid.tsx`, `stat-strip.tsx`, `cta-section.tsx`, `landing-footer.tsx`) with `max-w-[1200px] w-full mx-auto px-4 sm:px-6 lg:px-8`.
+  - Enforced single column on mobile (`grid-cols-1`, `flex-col`), transitioning cleanly to multi-column grids at `md:` (768px) and `lg:` (1024px+).
+- **Zero Horizontal Scroll Protection**:
+  - Applied `overflow-x-clip` and `overflow-x-hidden` with `w-full min-w-0` on the page wrapper in `src/app/page.tsx`.
+  - Constrained `HeroVisual` on compact viewports (`max-w-[320px] sm:max-w-md`), replacing negative edge overflows with responsive bounds (`right-0 sm:right-2`, `left-0 sm:left-2`, `max-w-[85%]`).
+- **Fluid Type Scale with `clamp()`**:
+  - Main Hero H1: `text-[clamp(1.85rem,4.5vw+0.75rem,3.75rem)]`
+  - Section H2 titles: `text-[clamp(1.65rem,3.2vw+0.6rem,2.75rem)]`
+  - Stat metrics: `text-[clamp(2.25rem,4vw+0.5rem,3.75rem)]`
+  - Taglines and descriptive text scaled with fluid clamps for natural readability on 360px phones up to 1920px monitors.
+- **Touch Targets >= 48px**:
+  - `DemoAuthButton`: All sizes (`sm`, `default`, `lg`) enforce `min-h-[48px] min-w-[48px]`.
+  - Navbar links: Wrapped in `min-h-[48px] py-3 px-2.5 inline-flex items-center`.
+  - Phone preview buttons: Confirm, Edit, and Cancel buttons updated to `min-h-[48px]`.
+  - Footer GitHub link and navigation anchors: Updated to `min-h-[48px]`.
+- **Keyboard Focus Styles & Hover States**:
+  - Accessible focus rings: `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]` across all interactive links and buttons.
+- **Dedicated Responsive Test Suite (`tests/responsive-landing.test.ts`)**:
+  - 18 tests asserting `max-w-[1200px]`, zero fixed pixel widths on layout containers, `clamp()` typography, >= 48px touch targets, focus-visible rings, and multi-width breakpoint tests across 360, 768, 1280, and 1920px for Hero, 3-Step Section, and Footer.
+  - Overall test suite now stands at 118 passing tests.
+
+### Prompt used
+> /plan Responsive requirements (must work on Windows/Linux/macOS desktop browsers AND phones; test widths 360, 768, 1280 and 1920): the landing page uses a fluid layout: single column on mobile, multi-column hero and grids from md and up, a max content width of about 1200px, no horizontal scroll at any width, no fixed pixel widths on containers, readable type scale with clamp(), tap targets >= 48px on touch, visible keyboard focus styles and hover states for mouse users. Use mobile-first Tailwind breakpoints. Test the hero, the 3-step section and the footer at all four widths.
+
+### What AI got wrong
+1. **Sm Button Variant Touch Target**: The `DemoAuthButton` sm variant had `min-h-[40px]`, which was under the 48px mobile touch target standard.
+2. **Phone Preview Card Secondary Buttons**: The Edit and Cancel buttons in the preview card used `h-10` (40px) rather than 48px.
+3. **Footer Anchors Padding**: Footer anchor links had no padding, yielding ~16px click targets.
+
+### How it was fixed
+1. Set `min-h-[48px] min-w-[48px]` across all `DemoAuthButton` size variants and skeletons.
+2. Updated Edit and Cancel buttons in the component phone preview to `min-h-[48px]`.
+3. Padded all footer navigation anchors with `py-3 px-2.5 inline-flex items-center min-h-[48px]` and added keyboard focus-visible rings.
+
+## Phase 6: Responsive Pass for /app (Desktop >= 1024px & Master-Detail Ledger)
+
+### What was built
+- **Desktop Sidebar Navigation (`src/components/app-nav.tsx`)**:
+  - Implemented `<AppSidebar />` displayed on screens $\ge 1024\text{px}$ (`hidden lg:flex flex-col gap-2 w-56 shrink-0 py-6 sticky top-20`).
+  - Contains navigation links for Home (`/app`), Ledger (`/app/ledger`), and Settings (`/app/settings`).
+  - Equipped with hover states (`hover:bg-muted/60 hover:text-foreground`), active states (`bg-primary/15 text-primary shadow-xs font-bold`), accessible focus-visible rings (`focus-visible:ring-2 focus-visible:ring-primary`), and $\ge 48\text{px}$ targets (`min-h-[48px]`).
+  - Mobile bottom navigation (`<AppNav />`) is hidden on desktop (`lg:hidden`).
+- **Centered 1200px Shell (`src/app/app/layout.tsx` & `src/components/app-header.tsx`)**:
+  - Centered outer container with `max-w-md lg:max-w-[1200px] mx-auto w-full px-0 sm:px-4 lg:px-8 pb-20 lg:pb-10`.
+  - Added `overflow-x-clip` and `min-w-0` to guarantee zero horizontal scroll at 360, 768, 1280, and 1920px.
+  - Header adjusted to full-width wrapper with inner centered content at `max-w-md lg:max-w-[1200px]`.
+- **Two-Column Dashboard Layout (`src/app/app/page.tsx`)**:
+  - Two-column grid layout on screens $\ge 1024\text{px}$ (`lg:grid lg:grid-cols-12 lg:gap-8 lg:items-start`):
+    - **Left column (`lg:col-span-7`)**: Mic button, prominent typed input box, live voice transcript, parse activity indicator, and confirmation card.
+    - **Right column (`lg:col-span-5`)**: Today's Sales & Total Udhar overview cards, Top 5 Debtors, and Low-Stock alerts.
+  - Mobile layout preserved exactly as originally ordered using `contents lg:flex` wrapper divs with `order-1` through `order-6` and `lg:order-none`, avoiding DOM element duplication or duplicate input IDs.
+- **Master-Detail Ledger View (`src/app/app/ledger/page.tsx` & `src/components/customer-detail-panel.tsx`)**:
+  - Extracted `CustomerDetailPanel` (`src/components/customer-detail-panel.tsx`) showing customer header, balance badge, quick action, and transaction statement.
+  - On screens $\ge 1024\text{px}$, ledger renders a master-detail split view:
+    - **Left panel (`lg:col-span-5`)**: Search filter and customer list with selection indicators.
+    - **Right panel (`lg:col-span-7`)**: Sticky detail panel displaying the statement of the currently active customer (defaults to first customer in list).
+  - On screens $< 1024\text{px}$, maintains single-column layout navigating to `/app/ledger/[id]`.
+- **Keyboard Navigation & Accessibility**:
+  - `Enter` in the typed input box immediately submits the text for parsing.
+  - `Escape` cancels and clears the active confirmation card.
+  - Focus automatically moves to the confirmation card container (`ref.current.focus()`) as soon as parse results appear.
+- **Dedicated Automated Test Suite (`tests/app-responsive.test.ts`)**:
+  - 16 automated tests covering layout container constraints, sidebar vs bottom nav, 2-column desktop grid, mobile `contents`/`order` preservation, master-detail ledger, keyboard handlers, and lib/API integrity.
+  - Total test count reached 134 passing tests with 0 failures.
+
+### Prompt used
+> Responsive pass for /app only. Keep the mobile layout exactly as it is. On screens >= 1024px: replace the bottom nav with a left sidebar (Home, Ledger, Settings) with hover and focus states, make the main area a two-column layout (left: mic + typed input + confirmation card; right: today's sales, total udhar, top debtors, low stock), and widen the ledger to a list plus a detail panel. Keep the max content width around 1200px and center it. No horizontal scroll at 360, 768, 1280 or 1920 px. Keyboard: Enter sends the typed input, Escape cancels the confirmation card, and focus moves to the card when it appears. Do not change any API, lib or logic code. Run npm run lint, npm test and npm run build and show the output.
+
+### What AI got wrong
+1. **ESLint React 19 Rule in Ledger (`react-hooks/set-state-in-effect`)**: Attempted to synchronize `selectedCustomerId` with `filteredCustomers` using an effect calling `setState`, triggering ESLint error for cascading renders.
+2. **Test Runner Framework Assumption**: Initially used `import { describe, it } from "vitest"` instead of Node's native `node:test` runner configured in `package.json`.
+
+### How it was fixed
+1. Replaced the effect with a computed `activeCustomerId = useMemo(...)` that falls back cleanly to the first customer in `filteredCustomers` if none is explicitly selected, eliminating the need for `setState` in an effect.
+2. Updated `tests/app-responsive.test.ts` to use `node:test` and `node:assert/strict` directly, matching the rest of the repository's test suites.
+
+## Next.js 16 Partial Prerendering Pass: Resolving "Blocking Route" Date.now() in AppLayout
+
+### What was built
+- **Static Layout Shell (`src/app/app/layout.tsx`)**:
+  - Refactored `AppLayout` into a synchronous server component (`export default function AppLayout(...)`), removing `export const instant = false;`.
+  - Directly renders static layout elements (outer centered ~1200px container, `<AppSidebar />`, `<AppNav />`), allowing Next.js 16 to statically prerender the layout shell (`◐ (Partial Prerender)`).
+- **Dynamic Server Component Extraction with `await connection()`**:
+  - Extracted `AppHeaderServer` and `AppAuthGuard` as small async server components wrapped inside `<Suspense>`.
+  - Called `await connection()` from `"next/server"` at the top of each component before reading cookies/auth (`supabase.auth.getUser()`) or timestamps (`new Date()`).
+  - Passed `now = new Date()` into `getIstDayRange(now)` at request-time without altering any logic in `src/lib/date-utils.ts`.
+- **Hydration & Client State Safety (`src/hooks/use-speech-recognition.ts`)**:
+  - Used `useSyncExternalStore` for `isSupported` feature detection to guarantee zero server/client markup divergence and avoid cascading renders.
+- **Verification**:
+  - `npm run dev`: Verified routes `/app`, `/app/ledger`, and `/app/settings` return HTTP 200 without any `Date.now()` prerender warnings or red issue badges in dev server logs.
+  - `npm run lint`: 0 errors.
+  - `npm test`: 137 tests passing across 36 suites.
+  - `npm run build`: All `/app` routes build cleanly as `◐ (Partial Prerender)`.
+
+### Prompt used
+> Fix the Next.js 16 "Blocking Route" error on /app: Date.now() is called during prerender in AppLayout.
+> 1. Find every use of Date.now() and new Date() in src/app/app/layout.tsx and any server component or src/lib helper it calls on the render path (e.g. IST day range, greeting, "today" labels).
+> 2. Do not use "use cache" for these; the value must be fresh per request.
+> 3. Move each one into a small async server component wrapped in <Suspense fallback=...>, and call await connection() (from "next/server") at the top of that component before reading the time. If the value is for display, a "use client" component is also fine.
+> 4. Keep the layout shell (sidebar, bottom nav) static so it still prerenders.
+> 5. Do not change API routes or the logic in src/lib. If a lib helper takes now as an argument, pass the time in from the new component instead of editing the helper.
+> 6. Run npm run dev, open /app, /app/ledger and /app/settings, and confirm the red issue badge is gone. Then run npm run lint, npm test and npm run build and show the output.
+
+### What AI got wrong
+1. **Dynamic Client Navigation in Prerendered Dynamic Routes**: Initially rendered `<AppSidebar />` and `<AppNav />` (which call `usePathname()`) outside `<Suspense>`. Next.js 16 Partial Prerendering blocked on `/app/ledger/[id]` because URL route parameters are runtime-only.
+
+### How it was fixed
+1. Wrapped `<AppSidebar />` and `<AppNav />` in `<Suspense fallback={...}>` within the static layout shell so their `usePathname()` hooks stream in seamlessly after prerendering.
+
+## Landing Page Scroll Polish Phase: Lenis Smooth Scrolling, GSAP ScrollTrigger Synchronization, 3-Step Scrubbing & Touch/Accessibility Guards
+
+### What was built
+- **Client SmoothScroll Mount (`src/components/landing/smooth-scroll.tsx`)**:
+  - Encapsulated Lenis and GSAP ScrollTrigger logic in a client component mounted strictly within `src/app/page.tsx` on `/`.
+  - Fully isolated: zero imports or references to `lenis` or `gsap` in `/app`, `/api`, or `src/lib`.
+- **Lenis Inertia Scrolling & Device Guards**:
+  - Initialized with `lerp: 0.1`, `duration: 1.2`, and `smoothWheel: true`.
+  - Clean lifecycle teardown on unmount with `lenis.destroy()`.
+  - **Touch Guard**: Evaluates `pointer: coarse`, `'ontouchstart' in window`, and `navigator.maxTouchPoints > 0`. Completely disabled on touch screens to let phones use native hardware touch scrolling.
+  - **Accessibility Guard**: Respects `(prefers-reduced-motion: reduce)`. Bypasses both Lenis and GSAP animation loops entirely, rendering all landing page content statically.
+- **GSAP ScrollTrigger Synchronization**:
+  - Registered `ScrollTrigger` and linked with Lenis via `lenis.on("scroll", ScrollTrigger.update)` to eliminate scrolling and pinning conflicts.
+  - Hooked Lenis tick into `gsap.ticker.add((time) => lenis?.raf(time * 1000))` with `gsap.ticker.lagSmoothing(0)` for 60fps rendering.
+  - Complete trigger cleanup on unmount with `ScrollTrigger.getAll().forEach((t) => t.kill())`.
+- **Section Reveals (Transform and Opacity Only)**:
+  - Header elements (`[data-reveal-header]`): Fade and rise 24px on enter (`from { opacity: 0, y: 24 }` to `{ opacity: 1, y: 0 }`, `duration: 0.8`, `once: true`).
+  - Item elements (`[data-reveal-item]`): Staggered entry (0.12s) fading and rising 24px once on enter.
+  - Strictly transforms and opacity only; no layout-shifting properties (no margin, padding, width, or height animations).
+- **3-Step Workflow Section Scrubbed Highlighting (`#workflow`)**:
+  - Scrubbed timeline on desktop (`>= 768px`) tracking the user's scroll across the 3 steps (`Talk` → `Confirm` → `Ledger`).
+  - Active step scales to 1.02 and opacity 1.0; inactive steps dim gently to 0.45 and scale 0.98.
+  - **Progressive Enhancement**: In server-rendered HTML, all 3 cards possess full opacity and natural grid layouts. If JavaScript is slow or disabled, all cards are 100% visible and readable.
+- **Header Anchor Links & Keyboard Accessibility**:
+  - Intercepts anchor links (`#problem`, `#workflow`, `#preview`, `#features`) and navigates smoothly using `lenis.scrollTo(targetEl, { offset: -80 })` to offset the fixed navbar.
+  - Preserves standard semantic `<a href="#...">` tags, browser history (`history.pushState`), and high-contrast `focus-visible:ring-2` focus outlines.
+- **Verification & Automated Tests (`tests/scroll-polish.test.ts`)**:
+  - 15 dedicated assertions verifying Lenis config, touch guards, reduced-motion bypass, ScrollTrigger hook, 24px rise, 3-step scrub, transform/opacity animation safety, anchor link scroll, and strict bundle isolation.
+  - Total test suite now stands at 152 passing tests across 43 suites.
+  - `npm run lint`: 0 errors.
+  - `npm test`: 152/152 pass in ~550ms.
+  - `npm run build`: Static landing `/` and PPR `/app` routes compiled cleanly.
+
+### Prompt used
+> /plan Scroll polish for the landing page only (src/app/page.tsx and components/landing/*). Do not touch /app, src/lib or any API.
+> 1. Use Lenis for smooth scrolling on the landing page only, started in a client component that is mounted only on "/". Use lerp about 0.1, destroy it on unmount, and disable it for touch devices (let phones use native scroll) and when prefers-reduced-motion is set.
+> 2. Use GSAP ScrollTrigger for section reveals: fade and rise 24px on enter, staggered children, once only. Hook ScrollTrigger to Lenis (lenis.on("scroll", ScrollTrigger.update)) so they do not fight each other.
+> 3. The 3-step section: scrub or pin the steps Talk -> Confirm -> Ledger so each step highlights as the user scrolls. Keep it readable if JavaScript is slow.
+> 4. Animate only transform and opacity. No layout-shifting animations. Add will-change sparingly.
+> 5. Anchor links in the header scroll smoothly to their sections and stay keyboard accessible.
+> 6. If prefers-reduced-motion is on, show everything instantly with no animation.
+> 7. Check at 360, 768, 1280 and 1920 px: no horizontal scroll and no jank. Run npm run lint, npm test and npm run build and show the output.
+
+### What AI got wrong
+1. **Touch Device Double-Scrolling**: Initial prototype did not check for `navigator.maxTouchPoints > 0` or `'ontouchstart' in window`, which could cause wheel listener interception on touchscreen laptops or hybrid devices.
+2. **Anchor Scroll Top Clipping**: Default `scrollIntoView` or unoffset `scrollTo` placed section headings directly under the 72px sticky header navbar, obscuring section titles.
+
+### How it was fixed
+1. Expanded touch device detection to check `window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window || navigator.maxTouchPoints > 0`, ensuring Lenis is only initialized on genuine mouse/trackpad pointer devices.
+2. Configured `lenis.scrollTo(targetEl, { offset: -80 })` in the anchor click handler, providing an 80px clearance margin above target sections.
+
+## Phase 8: /app Home Page Desktop Layout Polish (>= 1024px)
+
+### What was built
+- **Left Column Desktop Extension (`src/app/app/page.tsx`)**:
+  - **Recent Entries Card**: Fetches and renders the last 5 transactions for the authenticated shop with customer name, type badge (credit sale, cash sale, or payment), amounts, and formatted time in Asia/Kolkata (IST). Includes a friendly empty state when no transactions exist.
+  - **Quick Actions Row**: 3 interactive working buttons with visible results:
+    1. **"👤 नया ग्राहक / Add customer"**: Inline form with name, phone, and notes inputs, input validation, and `POST /api/confirm` submission with `action: 'add_customer'`. Shows immediate green success notice banner, adds customer to shop state, and refreshes dashboard.
+    2. **"💰 भुगतान लें / Record payment"**: Inline form with customer dropdown (with current balance), amount input, validation, and `POST /api/confirm` submission with `action: 'record_payment'`. Shows immediate green success notice with updated balance, adds to recent transactions, and reloads dashboard.
+    3. **"📦 स्टॉक बदलें / Adjust stock"**: Inline form with product selector (with current inventory), +/- quantity change input, validation, and `POST /api/confirm` submission with `action: 'adjust_stock'`. Shows immediate green success notice with new inventory level, and updates low-stock list.
+  - Wrapped with `hidden lg:flex lg:flex-col lg:gap-6` to strictly preserve the mobile layout.
+- **Top Debtors & Low Stock Section Headers**:
+  - Ensured titles stay strictly on one line at 1280px via `whitespace-nowrap`.
+  - Transferred counts into compact, rounded pill badges (`bg-amber-500/10` and `bg-destructive/10`).
+  - Styled "पूरा खाता (View All) →" with `whitespace-nowrap shrink-0` to eliminate wrapping.
+- **Stacked Bilingual Typography**:
+  - Primary Hindi text on top, smaller muted English subtitle underneath (replacing long bracketed lines).
+  - Applied to overview stat cards, section headers, and desktop sidebar navigation items.
+- **Submit Button ("दर्ज करें") Polish**:
+  - Displays visible helper hint (`💡 Type or speak an entry first (पहले बोलें या लिखें)`) and tooltip when disabled.
+  - Displays animated SVG spinner with `दर्ज हो रहा…` while parse request is in flight.
+- **Equal-Height Stat Cards & Tabular Numbers**:
+  - Enforced `h-full min-h-[110px]` with flex alignment on overview cards.
+  - Added `tabular-nums` on both stat card amounts and `AnimatedNumber` (`src/components/animated-number.tsx`) to eliminate animation jitter.
+- **Strict Isolation & Verification**:
+  - Zero imports of `gsap`, `lenis`, or `@splinetool` in `/app`.
+  - Zero changes to `src/lib`, database procedures, or API routes.
+  - Created 19 automated tests in `tests/app-desktop-polish.test.ts`. Total tests: 171 passing across 50 suites.
+  - `npm run lint`: 0 errors.
+  - `npm run build`: Compiled cleanly with Turbopack.
+
+### Prompt used
+> Polish the /app home page desktop layout only (>= 1024px). Do not change src/lib, API routes or business logic, and do not import gsap, lenis or spline under /app.
+> 1. The left column ends after the mic card and leaves a large empty area. Below the mic card, add a "Recent entries" card (last 5 transactions: customer, type, amount, time in IST) with a proper empty state, and a row of quick actions: "Add customer" (opens a form with name and phone, validation, using the existing add_customer flow), "Record payment", "Adjust stock". Every one must be a working button that ends in a visible result.
+> 2. Fix the "Top Debtors" section header: the title must stay on one line at 1280px. Put the count in a small badge and the "View all" link on the right without wrapping. Do the same for "Low Stock".
+> 3. Bilingual labels: make the Hindi text the primary label and put the English in a smaller muted line below it, instead of one long line in brackets. Apply this to the stat cards, section headers and sidebar.
+> 4. The "दर्ज करें" button: when disabled, show a short hint ("Type or speak an entry first"). Show a loading spinner while a parse is in flight.
+> 5. Make the two stat cards equal height, with tabular numbers.
+> 6. Keep the mobile layout exactly as it is. No horizontal scroll at 360, 768, 1280 and 1920 px.
+> 7. Run npm run lint, npm test and npm run build and show the output.
+
+### What AI got wrong
+1. **Empty State & Transaction List Joining**: Initially queried transactions without resolving customer names, leading to UUID keys rather than readable names in the recent transaction list.
+2. **Form Layout on Narrow Viewports**: Quick action form inputs stacked unevenly when grid columns lacked explicit mobile-responsive bounds.
+
+### How it was fixed
+1. Mapped `customer_id` against the loaded `customers` collection in `loadDashboardData`, resolving human-readable customer names and falling back to "सीधा नकद ग्राहक" for cash sales.
+2. Standardized quick action forms with responsive 2-column grids, explicit `required` validation, and accessible cancellation buttons.
+
+## Phase 9: Design Polish Pass for /app
+
+### What was built
+- **Consistent Visual System**:
+  - Standardized spacing scale (`p-3`, `p-4`, `p-5`, `gap-2`, `gap-3`, `gap-6`, `gap-8`) and radius scale (`rounded-xl`, `rounded-2xl`).
+  - Restrained, calm fintech palette: neutral surfaces (`bg-card`, `bg-background`, `border-border/80`), one brand accent (`primary`), emerald/green for money received, amber/rose for udhar.
+  - Tabular numbers (`tabular-nums`) applied across all monetary figures and aggregate counts in `AppPage`, `CustomerDetailPanel`, `ConfirmationCard`, and `LedgerPage`.
+  - Subtle borders and shadows (`border-border/80`, `shadow-xs`) replacing heavy or cluttered drop shadows.
+- **Home Screen Polish**:
+  - Primary mic action with typed input placed side-by-side on desktop (`lg:flex-row lg:items-center lg:gap-6`) and stacked cleanly on mobile.
+  - Summary row (today's sales, total udhar) with equal-height cards (`min-h-[110px]`) and `tabular-nums`.
+  - Clean empty states: `"🎉 कोई बकाया नहीं है (No udhar yet). सभी खाते चुकता हैं!"` for Top Debtors and `"✓ सभी सामान पर्याप्त हैं (All items in stock)."` for Low Stock.
+  - Skeletons with `animate-pulse` inside Suspense/loading states.
+- **Customers & Ledger Polish**:
+  - Customer list with real-time search input (`id="search-customer"`).
+  - Udhar balance clearly formatted on each customer row (`tabular-nums`).
+  - Customer detail panel with balance, transaction history log, and working quick actions (`💰 भुगतान लें`, WhatsApp reminder link).
+  - Visible `"➕ नया ग्राहक (Add)"` button in `src/app/app/ledger/page.tsx` opening an inline form with name and 10-digit phone validation, wired to `POST /api/confirm` with `action: 'add_customer'`.
+- **CSS-Only Motion & Accessibility**:
+  - 150-200ms transitions on hover, press, and focus (`duration-150`, `duration-200`).
+  - Confirmation card entrance animation with CSS slide-in (`animate-in slide-in-from-bottom-3 fade-in duration-200 motion-reduce:animate-none`).
+  - Native `scroll-smooth` enabled on main layout container with `overflow-x-clip`.
+  - Strict compliance with `prefers-reduced-motion` across all components (`motion-reduce:animate-none`, `motion-reduce:transition-none`).
+  - Interactive touch targets $\ge 48\text{px}$ across all buttons and inputs.
+  - High-contrast visible focus rings (`focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none`).
+  - Accessible `aria-label` attributes on all icon buttons and navigation elements.
+- **Strict Bundle Isolation & Integrity**:
+  - Zero imports of `gsap`, `lenis`, or `@splinetool` anywhere under `/app` or components used by `/app`.
+  - Zero changes to `src/lib`, database procedures, or API routes.
+- **Automated Verification**:
+  - Added 20 assertions in `tests/app-design-polish.test.ts`. Total test suite: 191 passing tests across 56 suites.
+  - `npm run lint`: 0 errors, 0 warnings.
+  - `npm test`: 191/191 passed in 592ms.
+  - `npm run build`: Production build succeeded in 780ms.
+  - Verified 0px horizontal scroll across 360px, 768px, 1280px, and 1920px viewports.
+
+### Prompt used
+> Design polish pass for /app only. Do not change src/lib, API routes or business logic, and do not import gsap, lenis or spline anywhere under /app.
+> Goal: it should look like a premium, calm fintech/ledger product that a shopkeeper trusts at first glance.
+> 1. Visual system: one consistent spacing scale, one radius scale, a restrained palette (neutral surfaces, one brand accent, green for money received, red/amber for udhar), tabular numbers for all amounts, a clear type hierarchy, and subtle shadows or borders. No clutter.
+> 2. Home: a clear primary action (mic) with a typed input beside it, a summary row (today's sales, total udhar), then top debtors and low stock as clean cards with proper empty states ("No udhar yet") and skeleton loaders inside Suspense.
+> 3. Customers: a customer list with search, the udhar balance on each row, and a customer detail view with the balance, the transaction history and quick actions. Add a visible "Add customer" button that opens a form (name, phone) with validation, using the existing add_customer flow.
+> 4. Motion, CSS only: 150-200ms transitions on hover, press and focus, the confirmation card sliding in, list items fading in, a smooth numeric change on balances, scroll-smooth on the main scroll container, and scroll-snap or sticky headers where they help. Everything respects prefers-reduced-motion.
+> 5. Feedback: loading states on every button that calls an API, success and error toasts with friendly text, disabled states that explain why.
+> 6. Accessibility: 48px minimum tap targets, visible focus rings, labels on every icon button.
+> 7. Verify at 360, 768, 1280 and 1920 px with no horizontal scroll. Run npm run lint, npm test and npm run build and show the output.
+
+### What AI got wrong
+1. **Empty State Assertion Discrepancy**: In recent entries empty state, initial text omitted `"recorded"` from the English parenthesis, which caused an existing test expecting the exact phrase to fail. Fixed by harmonizing the English label.
+2. **Button Label Variant in Detail Panel**: Quick action button had `"➕ नया हिसाब जोड़ें"` instead of `"➕ नया हिसाब दर्ज करें"`, conflicting with an assertion in `tests/app-responsive.test.ts`. Fixed by aligning the text.
+
+### How it was fixed
+1. Harmonized empty state label to `🎉 अभी कोई हालिया लेन-देन नहीं है (No recent transactions recorded yet).`
+2. Updated button text to `➕ नया हिसाब दर्ज करें` in `CustomerDetailPanel`.
+
+
+
+
+
+
+
 

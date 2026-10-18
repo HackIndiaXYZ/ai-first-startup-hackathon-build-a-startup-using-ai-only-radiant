@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from "react";
 
 // Web Speech API interface declarations for TypeScript
 interface IWindowSpeechRecognition extends EventTarget {
@@ -46,14 +46,22 @@ interface SpeechRecognitionAlternative {
 
 type SpeechRecognitionConstructor = new () => IWindowSpeechRecognition;
 
+const emptySubscribe = () => () => {};
+
+function getSpeechSupportClient(): boolean {
+  if (typeof window === "undefined") return true;
+  return Boolean(
+    (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition ||
+    (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition
+  );
+}
+
 export function useSpeechRecognition(options?: { onEnd?: (transcript: string) => void }) {
-  const [isSupported] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return Boolean(
-      (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition
-    );
-  });
+  const isSupported = useSyncExternalStore(
+    emptySubscribe,
+    getSpeechSupportClient,
+    () => true
+  );
 
   const [isListening, setIsListening] = useState<boolean>(false);
   const [transcript, setTranscript] = useState<string>("");

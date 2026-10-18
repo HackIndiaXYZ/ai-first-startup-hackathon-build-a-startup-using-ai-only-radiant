@@ -69,14 +69,14 @@ export function AppNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-border bg-card/95 backdrop-blur-md px-3 py-1.5 safe-bottom max-w-md mx-auto"
-      aria-label="Main navigation"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-border bg-card/95 backdrop-blur-md px-3 py-1.5 safe-bottom max-w-md mx-auto"
+      aria-label="Mobile bottom navigation"
     >
       <Link
         href="/app"
         id="nav-home"
         aria-current={isHome ? "page" : undefined}
-        className={`flex flex-col items-center justify-center min-w-[56px] min-h-[48px] px-2 py-1 rounded-xl transition-colors ${
+        className={`flex flex-col items-center justify-center min-w-[56px] min-h-[48px] px-2 py-1 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           isHome
             ? "text-primary font-semibold"
             : "text-muted-foreground hover:text-foreground"
@@ -91,7 +91,7 @@ export function AppNav() {
         href="/app/ledger"
         id="nav-ledger"
         aria-current={isLedger ? "page" : undefined}
-        className={`flex flex-col items-center justify-center min-w-[56px] min-h-[48px] px-2 py-1 rounded-xl transition-colors ${
+        className={`flex flex-col items-center justify-center min-w-[56px] min-h-[48px] px-2 py-1 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           isLedger
             ? "text-primary font-semibold"
             : "text-muted-foreground hover:text-foreground"
@@ -106,7 +106,7 @@ export function AppNav() {
         href="/app/settings"
         id="nav-settings"
         aria-current={isSettings ? "page" : undefined}
-        className={`flex flex-col items-center justify-center min-w-[56px] min-h-[48px] px-2 py-1 rounded-xl transition-colors ${
+        className={`flex flex-col items-center justify-center min-w-[56px] min-h-[48px] px-2 py-1 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           isSettings
             ? "text-primary font-semibold"
             : "text-muted-foreground hover:text-foreground"
@@ -115,6 +115,77 @@ export function AppNav() {
         <SettingsIcon className="w-5 h-5 mb-0.5" />
         <span className="text-[11px] leading-tight">सेटिंग्स</span>
         <span className="text-[9px] leading-tight text-muted-foreground/80">Settings</span>
+      </Link>
+    </nav>
+  );
+}
+
+export function AppSidebar() {
+  const pathname = usePathname();
+
+  const isHome = pathname === "/app";
+  const isLedger = pathname.startsWith("/app/ledger");
+  const isSettings = pathname.startsWith("/app/settings");
+
+  return (
+    <nav
+      className="hidden lg:flex flex-col gap-2 w-56 shrink-0 py-6 sticky top-20"
+      aria-label="Desktop sidebar navigation"
+    >
+      <div className="px-3 pb-2 flex flex-col">
+        <span className="text-xs font-bold text-foreground uppercase tracking-wider">दुकान मेनू</span>
+        <span className="text-[10px] font-medium text-muted-foreground">Store Navigation</span>
+      </div>
+
+      <Link
+        href="/app"
+        id="sidebar-home"
+        aria-current={isHome ? "page" : undefined}
+        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+          isHome
+            ? "bg-primary/15 text-primary shadow-xs font-bold"
+            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        }`}
+      >
+        <HomeIcon className="w-5 h-5 shrink-0" />
+        <div className="flex flex-col">
+          <span className="leading-tight text-sm font-bold">होम</span>
+          <span className="text-[11px] font-medium text-muted-foreground">Home</span>
+        </div>
+      </Link>
+
+      <Link
+        href="/app/ledger"
+        id="sidebar-ledger"
+        aria-current={isLedger ? "page" : undefined}
+        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+          isLedger
+            ? "bg-primary/15 text-primary shadow-xs font-bold"
+            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        }`}
+      >
+        <BookOpenIcon className="w-5 h-5 shrink-0" />
+        <div className="flex flex-col">
+          <span className="leading-tight text-sm font-bold">खाता बही</span>
+          <span className="text-[11px] font-medium text-muted-foreground">Customer Ledger</span>
+        </div>
+      </Link>
+
+      <Link
+        href="/app/settings"
+        id="sidebar-settings"
+        aria-current={isSettings ? "page" : undefined}
+        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+          isSettings
+            ? "bg-primary/15 text-primary shadow-xs font-bold"
+            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        }`}
+      >
+        <SettingsIcon className="w-5 h-5 shrink-0" />
+        <div className="flex flex-col">
+          <span className="leading-tight text-sm font-bold">सेटिंग्स</span>
+          <span className="text-[11px] font-medium text-muted-foreground">Settings</span>
+        </div>
       </Link>
     </nav>
   );

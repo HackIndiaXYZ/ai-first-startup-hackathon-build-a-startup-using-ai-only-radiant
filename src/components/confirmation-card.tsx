@@ -227,7 +227,7 @@ export function ConfirmationCard({
   return (
     <div
       id="confirmation-card"
-      className="w-full max-w-md mx-auto rounded-2xl bg-card border border-border/80 shadow-md p-4 sm:p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200"
+      className="w-full max-w-md mx-auto rounded-2xl bg-card border border-border/80 shadow-md p-4 sm:p-5 flex flex-col gap-4 animate-in slide-in-from-bottom-3 fade-in duration-200 motion-reduce:animate-none"
     >
       {/* ── Top Badge & Action Title ── */}
       <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-3">
@@ -444,7 +444,7 @@ export function ConfirmationCard({
                 className="w-full text-center font-bold text-base bg-muted/30 border border-border rounded p-1 mt-1 outline-none min-h-[40px]"
               />
             ) : (
-              <span className="text-lg font-bold text-foreground">
+              <span className="text-lg font-bold text-foreground tabular-nums">
                 ₹{total.toLocaleString("en-IN")}
               </span>
             )}
@@ -463,7 +463,7 @@ export function ConfirmationCard({
                 className="w-full text-center font-bold text-base bg-muted/30 border border-border rounded p-1 mt-1 outline-none min-h-[40px]"
               />
             ) : (
-              <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
                 ₹{paid.toLocaleString("en-IN")}
               </span>
             )}
@@ -473,7 +473,7 @@ export function ConfirmationCard({
             <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
               उधार (Udhar)
             </span>
-            <span className="text-lg font-extrabold text-amber-700 dark:text-amber-400">
+            <span className="text-lg font-extrabold text-amber-700 dark:text-amber-400 tabular-nums">
               ₹{udharAmount.toLocaleString("en-IN")}
             </span>
           </div>
@@ -495,7 +495,7 @@ export function ConfirmationCard({
               className="text-center font-bold text-xl bg-muted/30 border border-border rounded p-1 outline-none min-h-[44px] w-36"
             />
           ) : (
-            <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
+            <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
               ₹{amount.toLocaleString("en-IN")}
             </span>
           )}
