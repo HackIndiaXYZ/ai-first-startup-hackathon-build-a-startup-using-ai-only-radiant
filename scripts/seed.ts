@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { createAdminClient } from "../src/lib/supabase/admin";
+import { getIstDayRange } from "../src/lib/date-utils";
 
 // 1. Ensure .env.local variables are loaded when running script directly
 function loadEnvLocal() {
@@ -139,13 +140,13 @@ async function seed() {
   console.log("📦 Seeding 30 grocery products...");
   const productList = [
     { name: "Aashirvaad Shudh Chakki Atta 5kg", unit: "packet", price: 225.0, stock_qty: 24, reorder_level: 5 },
-    { name: "Fortune Sunlite Refined Oil 1L", unit: "l", price: 145.0, stock_qty: 18, reorder_level: 6 },
+    { name: "Fortune Sunlite Refined Oil 1L", unit: "l", price: 145.0, stock_qty: 3, reorder_level: 6 }, // Low stock (3 <= 6)
     { name: "Tata Salt Desh Ka Namak 1kg", unit: "packet", price: 28.0, stock_qty: 55, reorder_level: 10 },
     { name: "Maggi 2-Minute Masala Noodles 70g", unit: "packet", price: 14.0, stock_qty: 80, reorder_level: 20 },
-    { name: "Amul Butter Pasteurized 100g", unit: "piece", price: 58.0, stock_qty: 14, reorder_level: 5 },
+    { name: "Amul Butter Pasteurized 100g", unit: "piece", price: 58.0, stock_qty: 2, reorder_level: 5 }, // Low stock (2 <= 5)
     { name: "Parle-G Original Glucose 250g", unit: "packet", price: 25.0, stock_qty: 45, reorder_level: 10 },
-    { name: "Taj Mahal Tea Leaves 250g", unit: "packet", price: 160.0, stock_qty: 16, reorder_level: 4 },
-    { name: "Toor Dal Desi 1kg", unit: "kg", price: 155.0, stock_qty: 32, reorder_level: 8 },
+    { name: "Taj Mahal Tea Leaves 250g", unit: "packet", price: 160.0, stock_qty: 2, reorder_level: 4 }, // Low stock (2 <= 4)
+    { name: "Toor Dal Desi 1kg", unit: "kg", price: 155.0, stock_qty: 4, reorder_level: 8 }, // Low stock (4 <= 8)
     { name: "Chana Dal Premium 1kg", unit: "kg", price: 95.0, stock_qty: 26, reorder_level: 6 },
     { name: "Moong Dal Dhuli 1kg", unit: "kg", price: 120.0, stock_qty: 22, reorder_level: 5 },
     { name: "India Gate Rozzana Basmati Rice 1kg", unit: "kg", price: 110.0, stock_qty: 38, reorder_level: 8 },
@@ -161,7 +162,7 @@ async function seed() {
     { name: "Colgate Strong Teeth Toothpaste 150g", unit: "piece", price: 105.0, stock_qty: 18, reorder_level: 5 },
     { name: "Lizol Floor Cleaner Citrus 500ml", unit: "piece", price: 115.0, stock_qty: 12, reorder_level: 4 },
     { name: "Good Knight Gold Flash Machine + Refill", unit: "piece", price: 88.0, stock_qty: 15, reorder_level: 4 },
-    { name: "Amul Taaza Toned Fresh Milk 500ml", unit: "packet", price: 32.0, stock_qty: 4, reorder_level: 8 }, // Low stock!
+    { name: "Amul Taaza Toned Fresh Milk 500ml", unit: "packet", price: 32.0, stock_qty: 3, reorder_level: 8 }, // Low stock (3 <= 8)
     { name: "Kissan Fresh Tomato Ketchup 500g", unit: "piece", price: 120.0, stock_qty: 15, reorder_level: 4 },
     { name: "Britannia Good Day Cashew 200g", unit: "packet", price: 45.0, stock_qty: 30, reorder_level: 8 },
     { name: "Everest Chat Masala 100g", unit: "packet", price: 68.0, stock_qty: 14, reorder_level: 4 },
@@ -483,7 +484,7 @@ async function seed() {
       paid: 50,
     },
 
-    // Sanjay Mishra (today / yesterday)
+    // Sanjay Mishra (yesterday)
     {
       custName: "Sanjay Mishra",
       daysAgo: 1,
@@ -495,6 +496,54 @@ async function seed() {
       ],
       paid: 200,
     },
+
+    // ── Several transactions strictly dated TODAY in Asia/Kolkata (IST) ──
+    {
+      custName: "Ramesh Kumar",
+      exactDateIso: new Date(getIstDayRange().start.getTime() + 3.5 * 3600 * 1000).toISOString(),
+      daysAgo: 0,
+      type: "sale",
+      raw_input: "Ramesh Kumar: 5kg atta aur 1 packet Maggi, 200 diya baki udhar",
+      items: [
+        { prodName: "Aashirvaad Shudh Chakki Atta 5kg", qty: 1 },
+        { prodName: "Maggi 2-Minute Masala Noodles 70g", qty: 1 },
+      ],
+      paid: 200,
+    },
+    {
+      custName: "Sunita Devi",
+      exactDateIso: new Date(getIstDayRange().start.getTime() + 5.5 * 3600 * 1000).toISOString(),
+      daysAgo: 0,
+      type: "payment",
+      raw_input: "Sunita Devi ne 250 rupaye pichla udhar jama karwaya",
+      items: [],
+      paid: 250,
+      total: 250,
+    },
+    {
+      custName: "Priya Patel",
+      exactDateIso: new Date(getIstDayRange().start.getTime() + 7 * 3600 * 1000).toISOString(),
+      daysAgo: 0,
+      type: "sale",
+      raw_input: "Priya Patel: 2 packet Good Day biscuit aur 1 bottle ketchup, cash diya",
+      items: [
+        { prodName: "Britannia Good Day Cashew 200g", qty: 2 },
+        { prodName: "Kissan Fresh Tomato Ketchup 500g", qty: 1 },
+      ],
+      paid: 210,
+    },
+    {
+      custName: "Sanjay Mishra",
+      exactDateIso: new Date(getIstDayRange().start.getTime() + 9.5 * 3600 * 1000).toISOString(),
+      daysAgo: 0,
+      type: "sale",
+      raw_input: "Sanjay Mishra ji: 1L mustard oil aur 1kg toor dal, udhar me likho",
+      items: [
+        { prodName: "Fortune Kachi Ghani Mustard Oil 1L", qty: 1 },
+        { prodName: "Toor Dal Desi 1kg", qty: 1 },
+      ],
+      paid: 0,
+    },
   ];
 
   let totalTxCount = 0;
@@ -504,7 +553,7 @@ async function seed() {
     const custId = custMap.get(bp.custName);
     if (!custId) continue;
 
-    const createdAt = new Date(now - bp.daysAgo * dayMs).toISOString();
+    const createdAt = bp.exactDateIso || new Date(now - bp.daysAgo * dayMs).toISOString();
 
     // Calculate total amount from items if sale
     let totalAmount = bp.total || 0;

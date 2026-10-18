@@ -131,3 +131,109 @@
 1. Updated Zod schemas to Zod 4 syntax (`z.record(z.string(), z.unknown())` and `parsed.error.issues[0]?.message`).
 2. Calibrated the customer matcher threshold: if `candidates.length === 1` and score `>= 0.80`, it safely resolves as `"matched"`. When multiple candidates exist with close scores, it returns `"ambiguous"` with all candidates so the user picks.
 3. Configured `"smoke:ai": "node --env-file=.env.local --import tsx scripts/smoke-ai.ts"` in `package.json` to automatically load environment secrets for manual runs.- Phase 3 bug: AI test file used a regex flag newer than tsconfig target; passed locally under npm test but failed Vercel type-check. Fixed by setting tsconfig target to ES2022. Lesson: always run npm run build, not just npm test, after AI edits.
+
+## Phase 4+5: Tier 1 UI (/app) — Voice/Text Entry, Confirmation Card, Idempotency, Real Dashboard & Customer Ledger
+
+### What was built
+- **Animated Numbers** (`src/components/animated-number.tsx`):
+  - Count-up animation component using direct DOM textContent manipulation via `motion/react` `animate()`.
+  - Full respect for `useReducedMotion()`, instant static render when enabled.
+- **Mobile Bottom Navigation** (`src/components/app-nav.tsx`):
+  - Fixed bottom navigation bar with tap targets $\ge 48\text{px}$.
+  - Wired to 3 real routes: `/app` (होम / Home), `/app/ledger` (खाता / Ledger), and `/app/settings` (सेटिंग्स / Settings).
+  - High contrast (WCAG AA) active route highlighting.
+- **App Shell Header** (`src/components/app-header.tsx`):
+  - Header component displaying shop name, user email, and sign out button.
+- **Speech Recognition Hook** (`src/hooks/use-speech-recognition.ts`):
+  - Browser Web Speech API hook with feature detection for Chromium vs other browsers.
+  - Primary language `hi-IN` with `en-IN` fallback.
+  - Live interim transcript streaming for real-time speech typing feedback.
+- **Confirmation Card** (`src/components/confirmation-card.tsx`):
+  - Renders action badge, matched customer full name, total / paid / udhar breakdown, Hinglish summary, confidence score, and low-confidence warning (<0.7).
+  - Customer disambiguation handling: full name for `"matched"`, candidate radio picker for `"ambiguous"`, and "Create new customer" option for `"new"`. Never silently merges.
+  - Manages single `idempotency_key` (UUID) per confirmation card, reused across retries.
+  - Inline edit mode allowing users to adjust amounts and names before confirming.
+  - Real API error display (overpayment vs current udhar, paid > total, rate limit).
+  - Success banner displaying updated customer udhar balance.
+  - All action buttons with min-height $\ge 48\text{px}$.
+- **Private Application Routes**:
+  - `src/app/app/layout.tsx`: Client-side app shell with Supabase auth verification, header, Suspense-wrapped children, and bottom nav.
+  - `src/app/app/page.tsx`: Home screen with Web Speech mic button (idle = static, pulse & "Listening..." only while recording), prominent typed-input box, live transcript typing, confirmation card, live dashboard with count-up animations, top 5 debtors, low-stock alerts (`stock_qty <= reorder_level`), loading skeletons, empty states, and error states.
+  - `src/app/app/ledger/page.tsx`: Customer list with balances, search filter, aggregate stats, and loading states.
+  - `src/app/app/ledger/[id]/page.tsx`: Customer detail view with udhar balance showcase, new entry action, and chronological transaction history cards.
+  - `src/app/app/settings/page.tsx`: Shop profile, account status, and sign out.
+- **Honest Demo Authentication**:
+  - `src/app/api/auth/demo/route.ts` & `src/app/page.tsx`: Honest demo auth error handling (`CONFIG_ERROR`, `CREDENTIALS_MISMATCH`, `CONNECTION_ERROR`), eliminating misleading seed prompts, and redirecting cleanly to `/app`.
+- **Testing & Verification**:
+  - `tests/app-ui.test.ts`: 13 new unit and contract tests verifying honest demo errors, button min-heights, confidence warnings, disambiguation, zero 3D/GSAP in `/app`, and speech/typed inputs. Total 70 tests passing.
+  - Verification: `npm run lint` (0 errors, 0 warnings), `npm test` (70 pass, 0 fail), `npm run build` (successful compilation, all 12 routes generated).
+
+### Prompt used
+> /plan Phase 4+5 (Tier 1 UI). Read AGENTS.md, docs/BRIEF.md and the existing code first, including the /api/parse and /api/confirm routes and their response shapes. Build the /app experience on top of them. No 3D or GSAP in app routes. 1. Voice/text entry on the home screen: a large mic button using the Web Speech API (hi-IN, fallback en-IN) with feature detection, plus a typed-input box that is just as prominent (Chrome-only speech must not block anyone). Show the live transcript typing in. Idle = "Tap to speak" with no pulse; the pulse and "Listening..." only while recording. 2. Send the text to POST /api/parse and show a confirmation card: action, full matched customer name (not just first name), total / paid / udhar for a sale, the Hindi/Hinglish summary and the confidence score. Buttons: Confirm / Edit / Cancel (all >= 48px). Low confidence (< 0.7) must show a visible "please check" warning. 3. Customer match handling: status "matched" shows the full name; "ambiguous" shows a picker of candidates; no match offers "Create new customer". Never silently merge. 4. Confirm calls POST /api/confirm. Generate ONE idempotency_key (uuid) per confirmation card, reuse it if the user taps again, disable the button while saving, and make a new key only for a new parse. Show the real API error messages (e.g. paid > total, overpayment shows current udhar, rate limit / "demo limit reached"). After success show the new udhar balance. 5. Dashboard from real data (RLS-safe queries, no service role key): today's sales, total udhar, top 5 debtors, low-stock list (stock_qty <= reorder_level). Use the existing count-up animation on numbers. 6. Ledger screen: customer list with balances and a customer detail page with transaction history. 7. Loading skeletons, empty states and error states on every screen. Hindi labels with English secondary text. Mobile-first, bottom nav wired to real routes. 8. In the demo auth route and "Try demo" button: show a specific, honest error (connection / credentials / missing account) and stop telling users to re-run the seed. Do not add features or libraries I didn't ask for. At the end run npm run lint, npm test AND npm run build, and show me the output. Show the plan first and append to AI_USAGE.md.
+
+### What AI got wrong
+1. **React 19 `react-hooks/set-state-in-effect` lint failures**: Initial `AnimatedNumber`, `useSpeechRecognition`, and `AppPage` called synchronous `setState` in `useEffect` on mount.
+2. **Next.js 16 Turbopack Prerender & Route Segment Conflict**: `export const dynamic = "force-dynamic"` collided with `cacheComponents: true` in `next.config.ts`, and server-side `cookies()` and dynamic `params` without `<Suspense>` failed prerendering during `npm run build`.
+3. **Event Handler Type Signatures**: Passing `loadLedger` directly to `onClick={loadLedger}` passed `MouseEvent` as the first argument, causing a TypeScript type mismatch with `showLoading: boolean`.
+
+### How it was fixed
+1. Re-architected `AnimatedNumber` to directly animate DOM `textContent` via `motion/react` `animate()`, initialized `isSupported` and `errorMsg` with lazy state initializers, and wrapped effect calls in async initializers.
+2. Converted `AppLayout` to a Client Component with browser client auth checking, and wrapped children and dynamic `use(params)` loaders inside `<Suspense>` boundaries.
+3. Wrapped click handlers in anonymous arrow functions `onClick={() => loadLedger(true)}`.
+
+## Phase 4+5 Refinements: Cache Components, IST Day Range, Speech Review, Edit Mode Matching, and Visitor Safety
+
+### What was built
+- **Asia/Kolkata ("IST") Day Range Helper** (`src/lib/date-utils.ts`):
+  - Pure function `getIstDayRange(referenceDate?: Date)` computing start (`00:00:00.000 IST`) and end (`23:59:59.999 IST`) UTC boundaries for any reference date in Asia/Kolkata (+05:30).
+  - Helper `isTodayInIst(dateInput, referenceDate)` verifying if a timestamp falls within today's day in IST.
+  - Unit tests covering midnight boundary transitions (23:59:59.999 IST vs 00:00:00.000 IST vs 00:00:00.001 IST).
+- **Next.js 16 Cache Components Compliance**:
+  - `/app/layout.tsx` updated to an async Server Component verifying user authentication server-side with `supabase.auth.getUser()` (never `getSession` or cookie presence) and redirecting to `/` if missing.
+  - Added `export const instant = false;` per Next.js 16 Cache Components authentication guide.
+  - Wrapped data-reading components in `<Suspense>` with skeletons as fallbacks.
+- **Speech Recognition User Review Flow** (`src/hooks/use-speech-recognition.ts` & `src/app/app/page.tsx`):
+  - Supported `onEnd` callback so transcript populates into the typed input box upon recognition finish for user review/editing. Never auto-sends.
+  - Disabled Send button while parse is in flight (`isParsing`).
+  - Fallback to `en-IN` strictly on `event.error === "language-not-supported"`.
+- **Parse Loading, 15s Notice & 30s Abort with Retry** (`src/app/app/page.tsx`):
+  - Loading spinner with "समझ रहा हूँ… / Understanding…".
+  - After 15s, displays "Taking longer than usual… (सामान्य से अधिक समय लग रहा है…)".
+  - At 30s, aborts via `AbortController.abort()` and provides a Retry button ("पुनः प्रयास करें / Retry") alongside the real error message.
+- **Customer Matching on Edit in Confirmation Card** (`src/components/confirmation-card.tsx`):
+  - When user edits customer name, dynamically re-runs `findBestCustomerMatch(customerName, customers)`.
+  - Disables Confirm button if edited customer name is unmatched unless marked as a new customer; never sends an unmatched edited name.
+- **Reset-Safe Seed Script with IST Transactions and Low-Stock Products** (`scripts/seed.ts`):
+  - Uses `getIstDayRange()` to date 4 transactions strictly today in IST.
+  - Seeds 4 products with `stock_qty <= reorder_level` (Refined Oil, Butter, Milk, Toor Dal).
+  - Idempotent and reset-safe.
+- **Pure Logic Extraction & Test Suite** (`src/lib/confirm-helpers.ts` & `tests/pure-helpers.test.ts`):
+  - Pure functions: `generateIdempotencyKey()`, `buildConfirmPayload()`, `formatApiError()`, `isLowConfidence()`.
+  - 89 offline tests pass in <500ms across 22 suites.
+- **Demo Route Visitor Safety** (`src/app/api/auth/demo/route.ts`):
+  - Logs full technical error details to server `console.error`.
+  - Returns short, friendly messages to visitors without exposing env vars (`DEMO_USER_PASSWORD`) or seeding commands (`npm run seed`).
+
+### Prompt used
+> Approve with these changes:
+> 1. "Today" means today in Asia/Kolkata. One shared helper computes the IST day range for the dashboard, with a test around midnight IST.
+> 2. Next.js 16 has Cache Components enabled. Read node_modules/next/dist/docs/ first. Wrap every component that reads cookies/auth/data in <Suspense> with the skeleton as fallback so npm run build passes. The /app layout must verify the user server-side with supabase.auth.getUser() (not getSession or cookie presence) and redirect to / if missing.
+> 3. Speech: when recognition ends, put the transcript in the text box so the user can review/fix it, then tap Send. Do NOT auto-send. Disable Send while a parse is in flight. Fall back to en-IN only on a language-not-supported error.
+> 4. Parse loading state: spinner with "समझ रहा हूँ… / Understanding…"; after 15s show "Taking longer than usual…"; abort at 30s with Retry and the real error text.
+> 5. Edit mode: if the user changes the customer name, re-run customer matching before Confirm is enabled. Never send an unmatched edited name.
+> 6. Update scripts/seed.ts so the demo shop always has several transactions dated today (IST) and a few low-stock products. Keep it reset-safe.
+> 7. Put pure logic (idempotency key handling, confirm payload builder, API error formatter, IST day range, low-confidence check) in src/lib and test those real functions.
+> 8. Demo route: log specific errors on the server, show visitors short friendly messages. Never mention env vars or seeding to visitors.
+> Then proceed. At the end run npm run lint, npm test AND npm run build and show the output.
+
+### What AI got wrong
+1. **ESLint Cascading Re-render (`react-hooks/set-state-in-effect`)**: Attempted to transfer speech transcript to typed input state using `useEffect`, triggering a lint error.
+2. **ESLint Ref Access During Render (`react-hooks/refs`)**: Updating `onEndRef.current` directly in hook body triggered React 19 render-phase ref access warning.
+3. **Demo Auth Test Regressions**: The existing `app-ui.test.ts` still checked for deprecated technical strings (`Could not connect to database`, `CONFIG_ERROR`) rather than the visitor-safe messages.
+
+### How it was fixed
+1. Configured an `onEnd` callback on `useSpeechRecognition` that triggers directly inside the browser `recognition.onend` DOM event handler.
+2. Moved `onEndRef.current` assignment inside `useEffect(() => { onEndRef.current = options?.onEnd; }, [options?.onEnd])`.
+3. Updated unit tests in `tests/app-ui.test.ts` to assert that server internals (`.env`, `DEMO_USER_PASSWORD`, `seed`) are never present in visitor constants, and technical errors are logged on the server.
+
+

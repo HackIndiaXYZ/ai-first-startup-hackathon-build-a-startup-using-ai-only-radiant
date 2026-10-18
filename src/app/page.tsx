@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { MicButton } from "@/components/mic-button";
 import { createClient } from "@/lib/supabase/client";
 
@@ -86,23 +87,35 @@ function SparklesIcon({ className }: { className?: string }) {
 /* ────────────────────────────────────────────
    Home Page
    ──────────────────────────────────────────── */
+import { useRouter } from "next/navigation";
+
 export default function Home() {
+  const router = useRouter();
   const [isListening, setIsListening] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [shopName, setShopName] = useState<string | null>(null);
   const [todaySales, setTodaySales] = useState<number>(0);
   const [totalUdhar, setTotalUdhar] = useState<number>(0);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const demoErr = params.get("demo_error");
+      if (demoErr) return decodeURIComponent(demoErr);
+    }
+    return null;
+  });
   const [isPending, startTransition] = useTransition();
 
-  // Load session & shop info on mount
+  // Load session on mount
   useEffect(() => {
+    let ignore = false;
+
     async function loadSession() {
       try {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
 
-        if (user) {
+        if (user && !ignore) {
           setUserEmail(user.email ?? null);
 
           // Fetch shop
@@ -112,7 +125,7 @@ export default function Home() {
             .eq("owner_id", user.id)
             .maybeSingle();
 
-          if (shop) {
+          if (shop && !ignore) {
             setShopName(shop.name);
 
             // Fetch total udhar from customer_balances view
@@ -121,7 +134,7 @@ export default function Home() {
               .select("balance")
               .eq("shop_id", shop.id);
 
-            if (balances) {
+            if (balances && !ignore) {
               const udharSum = balances.reduce(
                 (acc, b) => acc + (Number(b.balance) > 0 ? Number(b.balance) : 0),
                 0
@@ -140,7 +153,7 @@ export default function Home() {
               .eq("type", "sale")
               .gte("created_at", startOfToday.toISOString());
 
-            if (sales) {
+            if (sales && !ignore) {
               const salesSum = sales.reduce(
                 (acc, s) => acc + Number(s.total_amount),
                 0
@@ -155,6 +168,9 @@ export default function Home() {
     }
 
     loadSession();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const handleTryDemo = () => {
@@ -167,12 +183,13 @@ export default function Home() {
         });
         const data = await res.json();
         if (!res.ok) {
-          setErrorMsg(data.hint || data.error || "Demo login failed");
+          setErrorMsg(data.error || "Demo login failed");
         } else {
-          window.location.reload();
+          router.push("/app");
         }
-      } catch {
-        setErrorMsg("Failed to connect to demo auth");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Network error";
+        setErrorMsg(`Failed to connect to demo auth: ${msg}`);
       }
     });
   };
@@ -207,9 +224,12 @@ export default function Home() {
         <div>
           {userEmail ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground hidden sm:inline max-w-[140px] truncate">
-                {userEmail}
-              </span>
+              <Link
+                href="/app"
+                className="text-xs font-bold text-primary bg-primary/10 hover:bg-primary/15 px-3 py-1.5 rounded-lg transition-colors min-h-[36px] flex items-center"
+              >
+                दुकान खोलें →
+              </Link>
               <button
                 onClick={handleSignOut}
                 disabled={isPending}
@@ -223,7 +243,7 @@ export default function Home() {
               onClick={handleTryDemo}
               disabled={isPending}
               id="try-demo-btn"
-              className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 px-3.5 py-2 rounded-xl shadow-sm transition-all min-h-[44px] active:scale-95"
+              className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 px-3.5 py-2 rounded-xl shadow-sm transition-all min-h-[44px] active:scale-95 cursor-pointer"
             >
               <SparklesIcon className="w-3.5 h-3.5 text-amber-300" />
               <span>{isPending ? "लॉगिन हो रहा है..." : "Try demo"}</span>
@@ -232,9 +252,9 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Error message banner if demo login needs seed */}
+      {/* Specific honest error message banner */}
       {errorMsg && (
-        <div className="mx-4 mt-3 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive text-center">
+        <div className="mx-4 mt-3 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive text-center font-medium">
           {errorMsg}
         </div>
       )}
@@ -248,25 +268,42 @@ export default function Home() {
           <span className="text-xs">Talk to your shop</span>
         </p>
 
-        {/* Mic button: static when idle, animates pulse only when listening */}
-        <MicButton
-          listening={isListening}
-          onClick={() => setIsListening((prev) => !prev)}
-        />
+        {userEmail ? (
+          <div className="flex flex-col items-center gap-3">
+            <Link
+              href="/app"
+              id="btn-open-app"
+              className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md hover:bg-primary/95 min-h-[48px] active:scale-95 transition-all"
+            >
+              <span>दुकान ऐप खोलें (Open Shop) →</span>
+            </Link>
+            <span className="text-xs text-muted-foreground">
+              वॉयस और टाइपिंग से हिसाब दर्ज करें
+            </span>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-3">
+            {/* Mic button: static when idle, animates pulse only when listening */}
+            <MicButton
+              listening={isListening}
+              onClick={() => setIsListening((prev) => !prev)}
+            />
 
-        {/* Instruction text with active listening state */}
-        <div className="flex flex-col items-center gap-1 text-center">
-          <p
-            className={`text-base font-semibold transition-colors ${
-              isListening ? "text-primary animate-pulse" : "text-foreground/80"
-            }`}
-          >
-            {isListening ? "सुन रहा है... बोलिए" : "बोलने के लिए टैप करें"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {isListening ? "Listening... speak now" : "Tap to speak"}
-          </p>
-        </div>
+            {/* Instruction text with active listening state */}
+            <div className="flex flex-col items-center gap-1 text-center">
+              <p
+                className={`text-base font-semibold transition-colors ${
+                  isListening ? "text-primary animate-pulse" : "text-foreground/80"
+                }`}
+              >
+                {isListening ? "सुन रहा है... बोलिए" : "बोलने के लिए टैप करें"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {isListening ? "Listening... speak now" : "Tap to speak"}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Quick info cards */}
         <div className="grid grid-cols-2 gap-3 w-full max-w-xs mt-2">
@@ -292,31 +329,30 @@ export default function Home() {
         className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-around border-t border-border bg-card/95 backdrop-blur-sm px-4 py-2 safe-bottom"
         aria-label="Main navigation"
       >
-        <button
+        <Link
+          href="/app"
           id="nav-home"
           className="flex flex-col items-center gap-0.5 min-w-[48px] min-h-[48px] justify-center text-primary"
-          type="button"
-          aria-current="page"
         >
           <HomeIcon className="w-5 h-5" />
           <span className="text-[10px] font-medium">होम</span>
-        </button>
-        <button
+        </Link>
+        <Link
+          href="/app/ledger"
           id="nav-ledger"
           className="flex flex-col items-center gap-0.5 min-w-[48px] min-h-[48px] justify-center text-muted-foreground hover:text-foreground"
-          type="button"
         >
           <BookOpenIcon className="w-5 h-5" />
           <span className="text-[10px] font-medium">खाता</span>
-        </button>
-        <button
+        </Link>
+        <Link
+          href="/app/settings"
           id="nav-settings"
           className="flex flex-col items-center gap-0.5 min-w-[48px] min-h-[48px] justify-center text-muted-foreground hover:text-foreground"
-          type="button"
         >
           <SettingsIcon className="w-5 h-5" />
           <span className="text-[10px] font-medium">सेटिंग्स</span>
-        </button>
+        </Link>
       </nav>
     </div>
   );
