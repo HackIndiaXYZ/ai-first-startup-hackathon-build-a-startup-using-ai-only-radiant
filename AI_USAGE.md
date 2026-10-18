@@ -130,4 +130,4 @@
 ### How it was fixed
 1. Updated Zod schemas to Zod 4 syntax (`z.record(z.string(), z.unknown())` and `parsed.error.issues[0]?.message`).
 2. Calibrated the customer matcher threshold: if `candidates.length === 1` and score `>= 0.80`, it safely resolves as `"matched"`. When multiple candidates exist with close scores, it returns `"ambiguous"` with all candidates so the user picks.
-3. Configured `"smoke:ai": "node --env-file=.env.local --import tsx scripts/smoke-ai.ts"` in `package.json` to automatically load environment secrets for manual runs.
+3. Configured `"smoke:ai": "node --env-file=.env.local --import tsx scripts/smoke-ai.ts"` in `package.json` to automatically load environment secrets for manual runs.- Phase 3 bug: AI test file used a regex flag newer than tsconfig target; passed locally under npm test but failed Vercel type-check. Fixed by setting tsconfig target to ES2022. Lesson: always run npm run build, not just npm test, after AI edits.
