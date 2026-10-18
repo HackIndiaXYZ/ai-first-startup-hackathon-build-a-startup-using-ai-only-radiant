@@ -22,17 +22,48 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DukaanAI — Talk to your shop",
+  title: "DukaanAI — Talk to your shop. DukaanAI keeps the books.",
   description:
-    "Voice-first AI co-pilot for Indian kirana owners. Speech and photos become ledger entries, invoices, and reminders. DukaanAI keeps the books.",
-  keywords: ["kirana", "AI", "ledger", "voice", "Hindi", "invoice", "udhar"],
+    "Voice-first Hinglish AI co-pilot for Indian kirana store owners. Speech and photos become ledger entries, stock updates, GST invoices and WhatsApp payment reminders.",
+  keywords: [
+    "kirana",
+    "AI",
+    "ledger",
+    "voice",
+    "Hindi",
+    "Hinglish",
+    "invoice",
+    "udhar",
+    "bahi khata",
+    "HackIndia",
+  ],
+  authors: [{ name: "DukaanAI Team" }],
+  creator: "DukaanAI",
+  openGraph: {
+    type: "website",
+    locale: "hi_IN",
+    url: "https://dukaanai.in",
+    title: "DukaanAI — Talk to your shop. DukaanAI keeps the books.",
+    description:
+      "Voice-first Hinglish AI co-pilot for Indian kirana store owners. Speech and photos become ledger entries, stock updates, GST invoices and WhatsApp payment reminders.",
+    siteName: "DukaanAI",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DukaanAI — Talk to your shop. DukaanAI keeps the books.",
+    description:
+      "Voice-first Hinglish AI co-pilot for Indian kirana store owners. Speech and photos become ledger entries, stock updates, GST invoices and WhatsApp payment reminders.",
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#7c3aed",
+  themeColor: "#070611",
 };
 
 export default function RootLayout({

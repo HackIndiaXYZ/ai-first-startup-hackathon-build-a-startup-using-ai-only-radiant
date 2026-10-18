@@ -54,7 +54,7 @@ export function AnimatedNumber({
     : value.toLocaleString("en-IN");
 
   return (
-    <span ref={spanRef} className={className}>
+    <span ref={spanRef} className={`tabular-nums ${className}`}>
       {initialText}
     </span>
   );
