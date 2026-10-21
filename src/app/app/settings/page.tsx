@@ -51,6 +51,8 @@ export default function SettingsPage() {
   const handleSignOut = () => {
     startTransition(async () => {
       try {
+        const supabase = createClient();
+        await supabase.auth.signOut();
         await fetch("/api/auth/signout", { method: "POST" });
         router.push("/");
         router.refresh();
@@ -59,6 +61,8 @@ export default function SettingsPage() {
       }
     });
   };
+
+  const isDemo = userEmail === "demo@dukaanai.in";
 
   return (
     <main className="flex flex-col gap-5 px-4 py-5 animate-in fade-in duration-200">
@@ -87,11 +91,15 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-2 text-xs">
               <div className="flex items-center justify-between py-1 border-b border-border/40">
                 <span className="text-muted-foreground">दुकान का नाम:</span>
-                <span className="font-bold text-foreground">{shop?.name || "Sharma Kirana Store"}</span>
+                <span className="font-bold text-foreground">
+                  {shop?.name || "मेरी दुकान / My Dukaan"}
+                </span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-border/40">
                 <span className="text-muted-foreground">GSTIN:</span>
-                <span className="font-mono text-foreground">{shop?.gstin || "07AAAAA0000A1Z5"}</span>
+                <span className="font-mono text-foreground">
+                  {shop?.gstin || "07AAAAA0000A1Z5"}
+                </span>
               </div>
               <div className="flex items-center justify-between py-1">
                 <span className="text-muted-foreground">प्राथमिक भाषा:</span>
@@ -109,12 +117,14 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-2 text-xs">
               <div className="flex items-center justify-between py-1 border-b border-border/40">
                 <span className="text-muted-foreground">लॉगिन ईमेल:</span>
-                <span className="font-semibold text-foreground">{userEmail || "demo@dukaanai.in"}</span>
+                <span className="font-semibold text-foreground">
+                  {userEmail || "demo@dukaanai.in"}
+                </span>
               </div>
               <div className="flex items-center justify-between py-1">
                 <span className="text-muted-foreground">खाता प्रकार:</span>
                 <span className="font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full text-[11px]">
-                  डेमो खाता (Demo Account)
+                  {isDemo ? "डेमो खाता (Demo Account)" : "Google खाता (Google Account)"}
                 </span>
               </div>
             </div>

@@ -72,6 +72,8 @@ export default function AppPage() {
   const [recentEntries, setRecentEntries] = useState<RecentTransaction[]>([]);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState<boolean>(true);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [isLoadingSample, setIsLoadingSample] = useState<boolean>(false);
+  const [sampleSuccessMsg, setSampleSuccessMsg] = useState<string | null>(null);
 
   // Input & Parse states
   const [typedInput, setTypedInput] = useState<string>("");
@@ -180,11 +182,28 @@ export default function AppPage() {
         return;
       }
 
-      const { data: shop, error: shopErr } = await supabase
+      const { data: initialShop, error: shopErr } = await supabase
         .from("shops")
         .select("id")
         .eq("owner_id", user.id)
         .maybeSingle();
+
+      let shop = initialShop;
+      if (!shop && !shopErr) {
+        // Safe fallback: auto-create shop for new user if trigger hasn't run yet
+        const { data: newShop } = await supabase
+          .from("shops")
+          .insert({
+            owner_id: user.id,
+            name: "मेरी दुकान / My Dukaan",
+            language: "hi",
+          })
+          .select("id")
+          .single();
+        if (newShop) {
+          shop = newShop;
+        }
+      }
 
       if (shopErr || !shop) {
         setDashboardError("दुकान नहीं मिली (Shop profile not found).");
@@ -317,6 +336,29 @@ export default function AppPage() {
       ignore = true;
     };
   }, [loadDashboardData]);
+
+  // Load sample data RPC for brand-new users / judges
+  const handleLoadSampleData = async () => {
+    setIsLoadingSample(true);
+    setDashboardError(null);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.rpc("load_sample_data");
+
+      if (error) {
+        setDashboardError(`नमूना डेटा लोड त्रुटि: ${error.message}`);
+      } else {
+        setSampleSuccessMsg("नमूना किराना डेटा (ग्राहक व सामान) सफलतापूर्वक लोड हुआ!");
+        await loadDashboardData(true);
+        setTimeout(() => setSampleSuccessMsg(null), 5000);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Network error";
+      setDashboardError(`त्रुटि: ${msg}`);
+    } finally {
+      setIsLoadingSample(false);
+    }
+  };
 
   // Execute parse request with user text
   const handleParseText = async (textToParse: string) => {
@@ -566,6 +608,60 @@ export default function AppPage() {
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-12 lg:gap-8 lg:items-start w-full">
         {/* ── Left Column (Desktop >= 1024px): Mic + Typed Input + Confirmation Card + Desktop Quick Actions & Recent Entries ── */}
         <div className="contents lg:flex lg:flex-col lg:gap-6 lg:col-span-7">
+          {/* Sample Data Load Success Banner */}
+          {sampleSuccessMsg && (
+            <div className="order-1 lg:order-none p-3.5 rounded-xl bg-green-500/10 border border-green-500/30 text-green-800 dark:text-green-300 text-xs font-semibold flex items-center justify-between animate-in fade-in duration-150">
+              <span>{sampleSuccessMsg}</span>
+              <button
+                type="button"
+                onClick={() => setSampleSuccessMsg(null)}
+                className="text-green-800 dark:text-green-300 hover:opacity-75 font-bold ml-2 text-sm cursor-pointer"
+                aria-label="Close notification"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Brand-new User Empty State & Sample Data Loader Banner */}
+          {!isLoadingDashboard &&
+            customers.length === 0 &&
+            allProducts.length === 0 &&
+            recentEntries.length === 0 && (
+              <div className="order-1 lg:order-none p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-violet-500/10 via-primary/10 to-amber-500/10 border border-primary/20 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-in fade-in duration-200">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">👋</span>
+                    <h2 className="text-sm sm:text-base font-bold text-foreground">
+                      DukaanAI में आपका स्वागत है! (Welcome)
+                    </h2>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    <strong className="text-foreground">
+                      Say your first sale to get started:
+                    </strong>{" "}
+                    माइक दबाएं और बोलें जैसे <em>&ldquo;रमेश ने 500 का सामान लिया, 200 नकद दिए&rdquo;</em>, या तुरंत परीक्षण हेतु नमूना किराना डेटा लोड करें।
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  id="btn-load-sample-data"
+                  onClick={handleLoadSampleData}
+                  disabled={isLoadingSample}
+                  className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] shrink-0 cursor-pointer active:scale-[0.98] transition-all"
+                >
+                  {isLoadingSample ? (
+                    <span>डेटा लोड हो रहा है...</span>
+                  ) : (
+                    <>
+                      <span>✨</span>
+                      <span>Load sample data / नमूना डेटा लोड करें</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
           {/* Voice & Text Entry Section */}
           <section
             aria-label="Voice and text entry"
@@ -1085,8 +1181,11 @@ export default function AppPage() {
                   ))}
                 </div>
               ) : recentEntries.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground bg-card/40">
-                  🎉 अभी कोई हालिया लेन-देन नहीं है (No recent transactions recorded yet).
+                <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground bg-card/40 flex flex-col items-center gap-1">
+                  <div>🎉 अभी कोई हालिया लेन-देन नहीं है (No recent transactions recorded yet).</div>
+                  <div className="text-[11px] font-medium text-primary mt-0.5">
+                    अपनी पहली बिक्री बोलकर शुरू करें (Say your first sale to get started)!
+                  </div>
                   <div className="text-[10px] opacity-75 mt-0.5">
                     Speak or type an entry above to record your first transaction!
                   </div>
@@ -1239,9 +1338,30 @@ export default function AppPage() {
                 ))}
               </div>
             ) : debtors.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground bg-card/40">
-                🎉 कोई बकाया नहीं है (No udhar yet). सभी खाते चुकता हैं!
-                <div className="text-[10px] opacity-75 mt-0.5">All customer accounts are settled.</div>
+              <div className="rounded-2xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground bg-card/40 flex flex-col items-center gap-1.5">
+                {customers.length === 0 ? (
+                  <>
+                    <span className="font-semibold text-foreground">
+                      दुकान में अभी कोई ग्राहक या बकाया नहीं है
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      अपनी पहली बिक्री बोलकर शुरू करें (Say your first sale to get started).
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleLoadSampleData}
+                      disabled={isLoadingSample}
+                      className="text-xs font-bold text-primary underline cursor-pointer mt-1"
+                    >
+                      नमूना डेटा लोड करें / Load sample data
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div>🎉 कोई बकाया नहीं है (No udhar yet). सभी खाते चुकता हैं!</div>
+                    <div className="text-[10px] opacity-75 mt-0.5">All customer accounts are settled.</div>
+                  </>
+                )}
               </div>
             ) : (
               <div className="flex flex-col gap-2">
@@ -1301,9 +1421,30 @@ export default function AppPage() {
                 ))}
               </div>
             ) : lowStockItems.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground bg-card/40">
-                ✓ सभी सामान पर्याप्त हैं (All items in stock).
-                <div className="text-[10px] opacity-75 mt-0.5">All products have healthy inventory levels.</div>
+              <div className="rounded-2xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground bg-card/40 flex flex-col items-center gap-1.5">
+                {allProducts.length === 0 ? (
+                  <>
+                    <span className="font-semibold text-foreground">
+                      दुकान में अभी कोई सामान दर्ज नहीं है
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      अपनी पहली बिक्री बोलकर शुरू करें (Say your first sale to get started).
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleLoadSampleData}
+                      disabled={isLoadingSample}
+                      className="text-xs font-bold text-primary underline cursor-pointer mt-0.5"
+                    >
+                      नमूना डेटा लोड करें / Load sample data
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div>✓ सभी सामान पर्याप्त हैं (All items in stock).</div>
+                    <div className="text-[10px] opacity-75 mt-0.5">All products have healthy inventory levels.</div>
+                  </>
+                )}
               </div>
             ) : (
               <div className="flex flex-col gap-2">

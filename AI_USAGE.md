@@ -550,6 +550,57 @@
 1. Harmonized empty state label to `🎉 अभी कोई हालिया लेन-देन नहीं है (No recent transactions recorded yet).`
 2. Updated button text to `➕ नया हिसाब दर्ज करें` in `CustomerDetailPanel`.
 
+## Phase 10: Auth Phase — Google Sign-In, Onboarding & Sample Data
+
+### What was built
+- **Dedicated /login Experience**:
+  - Added `/login` route with a large, prominent "Continue with Google / Google से जारी रखें" button (`id="btn-google-signin"`, min-h 54px, official Google SVG icon) and 1-click instant demo sign-in (`id="btn-demo-signin"`).
+  - Next.js 16 Cache Components compliance: wrapped request-time searchParams reading inside `<Suspense>` with a pulse skeleton fallback.
+  - Friendly, honest error handling: translates OAuth cancellation, access denial, and connection errors into comforting bilingual Hindi + English banners with close controls.
+  - Strict provider boundaries: completely excluded email/password, Facebook, and Apple authentication.
+- **/auth/callback Route Handler**:
+  - Implemented `@supabase/ssr` code-for-session exchange (`exchangeCodeForSession(code)`).
+  - Built `getSafeRedirectPath` helper that strictly validates return paths to relative same-site URLs (starts with single `/`, blocks `//`, `/\`, backslashes, and foreign protocol schemes).
+  - Forwarded host/protocol awareness for local development and Vercel production deployments.
+- **Landing Page Integration**:
+  - Updated landing page buttons in `LandingNavbar`, `HeroSection`, and `CtaSection` to link directly to `/login`, while maintaining seamless direct access for authenticated shopkeepers ("दुकान में जाएं / Go to Shop →").
+- **Database Migration 003 (`003_new_user_shop.sql`)**:
+  - Created trigger `on_auth_user_created` on `auth.users AFTER INSERT` running `handle_new_user()`.
+  - Defined function as `SECURITY DEFINER` with `set search_path = public`, inserting only that one row with default shop name `'मेरी दुकान / My Dukaan'`, handling duplicates safely via `if not exists`.
+  - Revoked all execution permissions on `handle_new_user` from `public`, `anon`, and `authenticated`.
+  - Added `load_sample_data()` RPC defined as `SECURITY INVOKER` (RLS-safe, no service role key) that injects a small set of 4 customers and 6 products (including 1 low-stock item for alert demonstrations).
+  - Backfilled existing auth users and ended with `notify pgrst, 'reload schema'`.
+- **Friendly Empty States & Sample Data Onboarding**:
+  - Added welcome banner on Dashboard (`/app`) for brand-new users with zero entries, displaying clear hint: `"Say your first sale to get started: माइक दबाएं और बोलें..."` and `"Load sample data / नमूना डेटा लोड करें"` button (`id="btn-load-sample-data"`).
+  - Added friendly empty states to Debtors, Low Stock, and Recent Entries cards with the hint `"Say your first sale to get started"`.
+  - Added friendly empty state and `"Load sample data / नमूना डेटा लोड करें"` button to Customer Ledger (`/app/ledger`, `id="btn-load-sample-data-ledger"`).
+  - Created dedicated Stock screen (`/app/stock`) with inventory table, search, low-stock warnings, adjust stock action, and empty state with sample data loader (`id="btn-load-sample-data-stock"`).
+- **Dual Session Sign Out**:
+  - Settings page (`/app/settings`) now invokes both `supabase.auth.signOut()` on the client and `POST /api/auth/signout` on the server, guaranteeing complete teardown for both Google OAuth and Demo accounts.
+  - Dynamically distinguishes between Google and Demo accounts in the profile card.
+- **Automated Verification**:
+  - Added 29 assertions in `tests/auth-flow.test.ts`. Total test suite: 220 passing tests across 65 suites.
+  - `npm run lint`: 0 errors, 0 warnings.
+  - `npm test`: 220/220 passed in 1.1s.
+  - `npm run build`: Production build succeeded in 4.0s with all 15 static, dynamic, and partial prerendered routes.
+
+### Prompt used
+> Auth phase: Google sign-in. Read AGENTS.md, docs/BRIEF.md and the existing code first.
+> 1. Add /login with a large "Continue with Google / Google से जारी रखें" button and the existing "Try demo". Add /auth/callback to exchange the OAuth code for a session with @supabase/ssr. Only redirect to relative same-site paths (block open redirects). Show friendly, honest errors if sign-in fails or is cancelled. Update the landing page buttons to link to /login. No email/password, Facebook or Apple.
+> 2. Migration 003_new_user_shop.sql: a trigger on auth.users AFTER INSERT that creates a shop for each new user (owner_id = new.id, default name "मेरी दुकान / My Dukaan"). The function must be SECURITY DEFINER with set search_path = public, only insert that one row, handle duplicates safely, and not be callable by anon/authenticated (revoke execute). Give me exact SQL Editor steps and end with notify pgrst, 'reload schema'. Do not run SQL yourself.
+> 3. Brand-new users have empty data: add friendly empty states on the dashboard, ledger and stock screens with a clear hint ("Say your first sale to get started"). Add an optional "Load sample data / नमूना डेटा लोड करें" button that copies a small set of sample customers and products into the user's own shop through a SECURITY INVOKER RPC (RLS-safe, no service role key), so judges who sign in with Google can explore. Only if it stays small.
+> 4. Sign out must work for both Google and demo sessions. Do not change /api/parse or /api/confirm logic. The per-user and global AI limits stay as they are.
+> Next.js 16 Cache Components is on: read node_modules/next/dist/docs/ first and wrap data-reading components in <Suspense>. Show the plan first, then run npm run lint, npm test AND npm run build and show the output. Append to AI_USAGE.md.
+
+### What AI got wrong
+1. **React State in Effect Linter Rule**: Initially set URL error state inside a `useEffect` triggered by `searchParams`, triggering ESLint's `react-hooks/set-state-in-effect` warning.
+2. **Variable Reassignment in Shop Fallback**: Used `let` destructuring on `shopErr` which was never reassigned, triggering `prefer-const`.
+
+### How it was fixed
+1. Refactored `/login` page to derive `urlError` declaratively using `useMemo([searchParams])`, eliminating cascading renders and satisfying React Compiler / ESLint rules.
+2. Destructured `const { data: initialShop, error: shopErr }` and assigned mutable `let shop = initialShop` in `src/app/app/page.tsx`.
+
+
 
 
 

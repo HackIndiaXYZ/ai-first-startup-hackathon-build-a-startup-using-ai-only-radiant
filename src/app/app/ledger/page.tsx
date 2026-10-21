@@ -47,11 +47,27 @@ export default function LedgerPage() {
         return;
       }
 
-      const { data: shop } = await supabase
+      let { data: shop } = await supabase
         .from("shops")
         .select("id")
         .eq("owner_id", user.id)
         .maybeSingle();
+
+      if (!shop) {
+        // Safe fallback: auto-create shop for new user if trigger hasn't run yet
+        const { data: newShop } = await supabase
+          .from("shops")
+          .insert({
+            owner_id: user.id,
+            name: "मेरी दुकान / My Dukaan",
+            language: "hi",
+          })
+          .select("id")
+          .single();
+        if (newShop) {
+          shop = newShop;
+        }
+      }
 
       if (!shop) {
         setErrorMsg("दुकान नहीं मिली (Shop profile not found).");
@@ -102,6 +118,29 @@ export default function LedgerPage() {
       ignore = true;
     };
   }, [loadLedger]);
+
+  // Load sample data RPC for brand-new users / judges
+  const [isLoadingSample, setIsLoadingSample] = useState(false);
+  const handleLoadSampleData = async () => {
+    setIsLoadingSample(true);
+    setErrorMsg(null);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.rpc("load_sample_data");
+      if (error) {
+        setErrorMsg(`नमूना डेटा लोड त्रुटि: ${error.message}`);
+      } else {
+        setCustSuccessMsg("नमूना ग्राहक व उत्पाद लोड हो गए!");
+        await loadLedger(true);
+        setTimeout(() => setCustSuccessMsg(null), 5000);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Network error";
+      setErrorMsg(`त्रुटि: ${msg}`);
+    } finally {
+      setIsLoadingSample(false);
+    }
+  };
 
   // Handle Add Customer submission
   const handleAddCustomer = async (e: React.FormEvent) => {
@@ -383,16 +422,43 @@ export default function LedgerPage() {
               ))}
             </div>
           ) : filteredCustomers.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground bg-card/40 flex flex-col items-center gap-2">
-              <span className="text-2xl">🔍</span>
+            <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground bg-card/40 flex flex-col items-center gap-3">
+              <span className="text-2xl">{searchQuery ? "🔍" : "📋 ✨"}</span>
               <p className="font-semibold text-foreground text-sm">
-                कोई ग्राहक नहीं मिला (No Customers Found)
-              </p>
-              <p className="text-[11px] max-w-[220px]">
                 {searchQuery
-                  ? `"${searchQuery}" से मेल खाता कोई ग्राहक नहीं है।`
-                  : "दुकान में अभी कोई ग्राहक नहीं है। ऊपर बटन से नया ग्राहक जोड़ें।"}
+                  ? "कोई ग्राहक नहीं मिला (No Customers Found)"
+                  : "खाता बही अभी खाली है (No customers in ledger yet)"}
               </p>
+              <p className="text-[11px] max-w-[280px] leading-relaxed">
+                {searchQuery ? (
+                  `"${searchQuery}" से मेल खाता कोई ग्राहक नहीं है।`
+                ) : (
+                  <>
+                    <strong className="text-foreground">
+                      Say your first sale to get started:
+                    </strong>{" "}
+                    होम पर बोलकर बिक्री दर्ज करें, या नीचे दिए बटन से नमूना ग्राहक व उत्पाद लोड करें।
+                  </>
+                )}
+              </p>
+              {!searchQuery && customers.length === 0 && (
+                <button
+                  type="button"
+                  id="btn-load-sample-data-ledger"
+                  onClick={handleLoadSampleData}
+                  disabled={isLoadingSample}
+                  className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer mt-1"
+                >
+                  {isLoadingSample ? (
+                    <span>डेटा लोड हो रहा है...</span>
+                  ) : (
+                    <>
+                      <span>✨</span>
+                      <span>Load sample data / नमूना डेटा लोड करें</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-2 max-h-[calc(100vh-18rem)] lg:overflow-y-auto lg:pr-1">
