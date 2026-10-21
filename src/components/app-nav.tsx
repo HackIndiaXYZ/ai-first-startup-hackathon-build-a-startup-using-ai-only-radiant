@@ -41,6 +41,27 @@ function BookOpenIcon({ className }: { className?: string }) {
   );
 }
 
+function PackageIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m7.5 4.27 9 5.15" />
+      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+      <path d="m3.3 7 8.7 5 8.7-5" />
+      <path d="M12 22V12" />
+    </svg>
+  );
+}
+
 function SettingsIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -65,6 +86,7 @@ export function AppNav() {
 
   const isHome = pathname === "/app";
   const isLedger = pathname.startsWith("/app/ledger");
+  const isStock = pathname.startsWith("/app/stock");
   const isSettings = pathname.startsWith("/app/settings");
 
   return (
@@ -76,7 +98,7 @@ export function AppNav() {
         href="/app"
         id="nav-home"
         aria-current={isHome ? "page" : undefined}
-        className={`flex flex-col items-center justify-center min-w-[56px] min-h-[48px] px-2 py-1 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        className={`flex flex-col items-center justify-center min-w-[52px] min-h-[48px] px-2 py-1 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           isHome
             ? "text-primary font-semibold"
             : "text-muted-foreground hover:text-foreground"
@@ -91,7 +113,7 @@ export function AppNav() {
         href="/app/ledger"
         id="nav-ledger"
         aria-current={isLedger ? "page" : undefined}
-        className={`flex flex-col items-center justify-center min-w-[56px] min-h-[48px] px-2 py-1 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        className={`flex flex-col items-center justify-center min-w-[52px] min-h-[48px] px-2 py-1 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           isLedger
             ? "text-primary font-semibold"
             : "text-muted-foreground hover:text-foreground"
@@ -103,10 +125,25 @@ export function AppNav() {
       </Link>
 
       <Link
+        href="/app/stock"
+        id="nav-stock"
+        aria-current={isStock ? "page" : undefined}
+        className={`flex flex-col items-center justify-center min-w-[52px] min-h-[48px] px-2 py-1 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+          isStock
+            ? "text-primary font-semibold"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        <PackageIcon className="w-5 h-5 mb-0.5" />
+        <span className="text-[11px] leading-tight">स्टॉक</span>
+        <span className="text-[9px] leading-tight text-muted-foreground/80">Stock</span>
+      </Link>
+
+      <Link
         href="/app/settings"
         id="nav-settings"
         aria-current={isSettings ? "page" : undefined}
-        className={`flex flex-col items-center justify-center min-w-[56px] min-h-[48px] px-2 py-1 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        className={`flex flex-col items-center justify-center min-w-[52px] min-h-[48px] px-2 py-1 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           isSettings
             ? "text-primary font-semibold"
             : "text-muted-foreground hover:text-foreground"
@@ -125,6 +162,7 @@ export function AppSidebar() {
 
   const isHome = pathname === "/app";
   const isLedger = pathname.startsWith("/app/ledger");
+  const isStock = pathname.startsWith("/app/stock");
   const isSettings = pathname.startsWith("/app/settings");
 
   return (
@@ -168,6 +206,23 @@ export function AppSidebar() {
         <div className="flex flex-col">
           <span className="leading-tight text-sm font-bold">खाता बही</span>
           <span className="text-[11px] font-medium text-muted-foreground">Customer Ledger</span>
+        </div>
+      </Link>
+
+      <Link
+        href="/app/stock"
+        id="sidebar-stock"
+        aria-current={isStock ? "page" : undefined}
+        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+          isStock
+            ? "bg-primary/15 text-primary shadow-xs font-bold"
+            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        }`}
+      >
+        <PackageIcon className="w-5 h-5 shrink-0" />
+        <div className="flex flex-col">
+          <span className="leading-tight text-sm font-bold">स्टॉक</span>
+          <span className="text-[11px] font-medium text-muted-foreground">Stock & Inventory</span>
         </div>
       </Link>
 
