@@ -600,6 +600,26 @@
 1. Refactored `/login` page to derive `urlError` declaratively using `useMemo([searchParams])`, eliminating cascading renders and satisfying React Compiler / ESLint rules.
 2. Destructured `const { data: initialShop, error: shopErr }` and assigned mutable `let shop = initialShop` in `src/app/app/page.tsx`.
 
+## Phase 11: GitHub Documentation & Live Link Showcase
+
+### What was built
+- Comprehensive `README.md` at repository root showcasing:
+  - Live Demo Badge and Direct Links table (`https://dukaanai-two.vercel.app`, `/app`, `/login`).
+  - Problem statement, core features, two-agent AI architecture diagram, and tech stack details.
+  - Judge onboarding instructions (1-click demo login, sample data loading).
+  - Quickstart local setup and verification suite commands.
+- Verified test suite: 220/220 tests passing, ESLint 0 errors, production build validated.
+
+### Prompt used
+> mention the live link on github repo
+
+### What AI got wrong
+1. **GitHub Org Repo Edit Permission**: Attempted `gh repo edit` via GitHub API which returned HTTP 404/403 due to org-level API restrictions on the user token.
+
+### How it was fixed
+1. Configured authoritative repository `README.md` tracked directly via Git and pushed to `main`, ensuring prominent live links and badges display immediately on GitHub.
+
+
 
 
 
