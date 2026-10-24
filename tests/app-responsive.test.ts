@@ -134,8 +134,10 @@ describe("App Responsive Pass (>= 1024px and Mobile < 1024px)", () => {
 
     it("Escape key cancels the confirmation card when active", () => {
       assert.ok(appPageSrc.includes('e.key === "Escape"'));
-      assert.ok(appPageSrc.includes("setParseResult(null)"));
-      assert.ok(appPageSrc.includes("setActiveIdempotencyKey(null)"));
+      assert.ok(
+        appPageSrc.includes("setParseSession(null)") ||
+        appPageSrc.includes("setParseSession(resetParseSession())")
+      );
       assert.ok(appPageSrc.includes('window.addEventListener("keydown", handleKeyDown)'));
     });
 

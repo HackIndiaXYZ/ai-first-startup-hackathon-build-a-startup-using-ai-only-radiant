@@ -96,6 +96,36 @@ describe("Tier 1 UI (/app) & Demo Auth Visitor Safety", () => {
       assert.match(content, /New Balance|STRINGS\.confirmation\.newBalance/);
       assert.match(content, /confirmedResult\.customer\?\.balance/);
     });
+
+    it("should provide a clear checkbox/toggle (min 48px, default ON) for new customers on add_sale", () => {
+      const cardPath = path.resolve(__dirname, "../src/components/confirmation-card.tsx");
+      const content = fs.readFileSync(cardPath, "utf-8");
+      assert.match(content, /id="checkbox-create-customer"/);
+      assert.match(content, /createCustomer/);
+      assert.match(content, /min-h-\[48px\]/);
+    });
+
+    it("should render dropdown to select from existing customers when customers exist", () => {
+      const cardPath = path.resolve(__dirname, "../src/components/confirmation-card.tsx");
+      const content = fs.readFileSync(cardPath, "utf-8");
+      assert.match(content, /id="select-existing-customer"/);
+      assert.match(content, /sortedCustomers\.map/);
+    });
+
+    it("should provide 'Add as new customer first' button for unknown customer payments and drop state on dismiss", () => {
+      const cardPath = path.resolve(__dirname, "../src/components/confirmation-card.tsx");
+      const content = fs.readFileSync(cardPath, "utf-8");
+      assert.match(content, /id="btn-add-customer-first"/);
+      assert.match(content, /id="btn-record-another"/);
+      assert.match(content, /min-h-\[48px\]/);
+    });
+
+    it("should mount ConfirmationCard with unique key per parseSession in page.tsx", () => {
+      const homePath = path.resolve(__dirname, "../src/app/app/page.tsx");
+      const content = fs.readFileSync(homePath, "utf-8");
+      assert.match(content, /key=\{parseSession\.idempotencyKey\}/);
+      assert.match(content, /onDismiss=\{handleDismissConfirmation\}/);
+    });
   });
 
   describe("Web Speech API & Parse Timers", () => {

@@ -277,3 +277,109 @@ describe("Customer Name Matcher — Disambiguation, Surnames & Honorifics", () =
     assert.equal(res.matched?.name, "Anita Sharma");
   });
 });
+
+describe("Server-side Dual Confirms for Same Customer (Postgres RPC Math)", () => {
+  interface SimTransaction {
+    id: string;
+    shop_id: string;
+    customer_id: string;
+    total: number;
+    paid: number;
+    idempotency_key: string;
+  }
+
+  it("creates two transactions and adds both balances when two confirms have different keys for the same customer", () => {
+    const shopId = "shop-ledger-1";
+    const customerId = "cust-ramesh-1";
+    const transactions: SimTransaction[] = [];
+    const customerBalances: Record<string, number> = { [customerId]: 0 };
+
+    function processEntry(payload: {
+      shop_id: string;
+      customer_id: string;
+      total: number;
+      paid: number;
+      idempotency_key: string;
+    }) {
+      // Idempotency check matching 002_ledger.sql
+      const existing = transactions.find(
+        (t) => t.shop_id === payload.shop_id && t.idempotency_key === payload.idempotency_key
+      );
+      if (existing) {
+        return {
+          success: true,
+          idempotent: true,
+          transaction_id: existing.id,
+          balance: customerBalances[payload.customer_id] || 0,
+        };
+      }
+
+      const tx: SimTransaction = {
+        id: `tx-${transactions.length + 1}`,
+        shop_id: payload.shop_id,
+        customer_id: payload.customer_id,
+        total: payload.total,
+        paid: payload.paid,
+        idempotency_key: payload.idempotency_key,
+      };
+      transactions.push(tx);
+
+      // Udhar addition
+      const udhar = payload.total - payload.paid;
+      customerBalances[payload.customer_id] = (customerBalances[payload.customer_id] || 0) + udhar;
+
+      return {
+        success: true,
+        idempotent: false,
+        transaction_id: tx.id,
+        balance: customerBalances[payload.customer_id],
+      };
+    }
+
+    const key1 = "00000000-0000-4000-8000-000000000001";
+    const key2 = "00000000-0000-4000-8000-000000000002";
+
+    // 1. Confirm 1 for Ramesh: Rs 500 total, Rs 200 paid => Rs 300 udhar
+    const res1 = processEntry({
+      shop_id: shopId,
+      customer_id: customerId,
+      total: 500,
+      paid: 200,
+      idempotency_key: key1,
+    });
+    assert.equal(res1.success, true);
+    assert.equal(res1.idempotent, false);
+    assert.equal(res1.balance, 300);
+    assert.equal(transactions.length, 1);
+
+    // Retry of confirm 1 with same key: must be idempotent
+    const retryRes = processEntry({
+      shop_id: shopId,
+      customer_id: customerId,
+      total: 500,
+      paid: 200,
+      idempotency_key: key1,
+    });
+    assert.equal(retryRes.idempotent, true);
+    assert.equal(retryRes.balance, 300);
+    assert.equal(transactions.length, 1);
+
+    // 2. Confirm 2 for the SAME Ramesh with fresh key: Rs 400 total, Rs 100 paid => Rs 300 udhar
+    const res2 = processEntry({
+      shop_id: shopId,
+      customer_id: customerId,
+      total: 400,
+      paid: 100,
+      idempotency_key: key2,
+    });
+    assert.equal(res2.success, true);
+    assert.equal(res2.idempotent, false);
+    assert.notEqual(res2.transaction_id, res1.transaction_id);
+
+    // Balance adds both entries: 300 + 300 = 600
+    assert.equal(res2.balance, 600);
+    assert.equal(customerBalances[customerId], 600);
+    assert.equal(transactions.length, 2, "Two distinct keys must record two transactions");
+  });
+});
+

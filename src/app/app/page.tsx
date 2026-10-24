@@ -4,12 +4,18 @@ import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { MicButton } from "@/components/mic-button";
 import { AnimatedNumber } from "@/components/animated-number";
-import { ConfirmationCard, ParseApiResponse } from "@/components/confirmation-card";
+import { ConfirmationCard } from "@/components/confirmation-card";
 import { ReminderDialog } from "@/components/reminder-dialog";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { createClient } from "@/lib/supabase/client";
 import { getIstDayRange } from "@/lib/date-utils";
-import { generateIdempotencyKey, formatApiError } from "@/lib/confirm-helpers";
+import {
+  generateIdempotencyKey,
+  formatApiError,
+  ParseSession,
+  createParseSession,
+  resetParseSession,
+} from "@/lib/confirm-helpers";
 import { Customer } from "@/lib/agents/types";
 import { STRINGS } from "@/lib/strings";
 
@@ -90,8 +96,7 @@ function DashboardContent() {
   const [isParsing, setIsParsing] = useState<boolean>(false);
   const [parseTimerMessage, setParseTimerMessage] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
-  const [parseResult, setParseResult] = useState<ParseApiResponse | null>(null);
-  const [activeIdempotencyKey, setActiveIdempotencyKey] = useState<string | null>(null);
+  const [parseSession, setParseSession] = useState<ParseSession | null>(null);
   const [lastRawInput, setLastRawInput] = useState<string>("");
 
   // Quick Action states
@@ -145,19 +150,18 @@ function DashboardContent() {
 
   // Keyboard: Focus moves to confirmation card when it appears
   useEffect(() => {
-    if (parseResult && confirmationCardRef.current) {
+    if (parseSession && confirmationCardRef.current) {
       confirmationCardRef.current.focus();
     }
-  }, [parseResult]);
+  }, [parseSession]);
 
   // Keyboard: Escape cancels confirmation card or active quick action
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (parseResult) {
+        if (parseSession) {
           e.preventDefault();
-          setParseResult(null);
-          setActiveIdempotencyKey(null);
+          setParseSession(resetParseSession());
           setParseError(null);
         } else if (activeQuickAction) {
           e.preventDefault();
@@ -169,7 +173,7 @@ function DashboardContent() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [parseResult, activeQuickAction]);
+  }, [parseSession, activeQuickAction]);
 
   // Load dashboard data via RLS-safe client queries
   const loadDashboardData = useCallback(async (isRefresh = false) => {
@@ -422,9 +426,8 @@ function DashboardContent() {
       if (!res.ok) {
         setParseError(formatApiError(data.error || "Parsing failed. Please try again."));
       } else {
-        const newKey = generateIdempotencyKey();
-        setActiveIdempotencyKey(newKey);
-        setParseResult(data);
+        const session = createParseSession(data, text);
+        setParseSession(session);
 
         // Clear input boxes once successfully parsed into confirmation card
         setTypedInput("");
@@ -456,9 +459,14 @@ function DashboardContent() {
   };
 
   const handleCancelConfirmation = () => {
-    setParseResult(null);
-    setActiveIdempotencyKey(null);
+    setParseSession(resetParseSession());
     setParseError(null);
+  };
+
+  const handleDismissConfirmation = () => {
+    setParseSession(resetParseSession());
+    setTypedInput("");
+    resetTranscript();
   };
 
   const handleConfirmationSuccess = () => {
@@ -844,7 +852,7 @@ function DashboardContent() {
           </section>
 
           {/* Confirmation Card Section (Focus moves to card when it appears; Escape cancels) */}
-          {parseResult && activeIdempotencyKey && (
+          {parseSession && (
             <section
               ref={confirmationCardRef}
               tabIndex={-1}
@@ -853,12 +861,18 @@ function DashboardContent() {
               className="order-3 lg:order-none w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
             >
               <ConfirmationCard
-                parseResult={parseResult}
-                idempotencyKey={activeIdempotencyKey}
-                rawInput={lastRawInput}
+                key={parseSession.idempotencyKey}
+                parseResult={parseSession.parseResult}
+                idempotencyKey={parseSession.idempotencyKey}
+                rawInput={parseSession.rawInput}
                 customers={customers}
                 onCancel={handleCancelConfirmation}
                 onSuccess={handleConfirmationSuccess}
+                onDismiss={handleDismissConfirmation}
+                onOpenQuickAddCustomer={(prefillName) => {
+                  setNewCustName(prefillName);
+                  setActiveQuickAction("add_customer");
+                }}
               />
             </section>
           )}

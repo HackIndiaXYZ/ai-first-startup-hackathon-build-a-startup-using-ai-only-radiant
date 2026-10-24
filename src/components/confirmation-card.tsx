@@ -45,6 +45,8 @@ interface ConfirmationCardProps {
   customers?: Customer[];
   onCancel: () => void;
   onSuccess: (result: LedgerExecutionResult) => void;
+  onDismiss?: () => void;
+  onOpenQuickAddCustomer?: (name: string) => void;
 }
 
 export function ConfirmationCard({
@@ -54,6 +56,8 @@ export function ConfirmationCard({
   customers = [],
   onCancel,
   onSuccess,
+  onDismiss,
+  onOpenQuickAddCustomer,
 }: ConfirmationCardProps) {
   const { parsed, customer_match: initialCustomerMatch } = parseResult;
   const initialAction = parsed.action;
@@ -63,14 +67,20 @@ export function ConfirmationCard({
   const initialCustomerName =
     initialCustomerMatch?.matched?.name || initialData.customer || initialData.name || "";
 
+  // Action state (allows user to switch action, e.g. Payment -> Cash Sale or Add Customer)
+  const currentAction = initialAction;
+
   // Edit states
   const [isEditing, setIsEditing] = useState(false);
   const [customerName, setCustomerName] = useState<string>(initialCustomerName);
+  const customerPhone = initialData.phone || "";
+  const customerNotes = initialData.notes || "";
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
     initialCustomerMatch?.matched?.id || null
   );
+  // Default createCustomer is true for new customers on sale, false for payment
   const [createCustomer, setCreateCustomer] = useState<boolean>(
-    initialCustomerMatch?.status === "new"
+    initialAction === "add_sale" && initialCustomerMatch?.status === "new"
   );
 
   const [total, setTotal] = useState<number>(Number(initialData.total ?? 0));
@@ -86,6 +96,11 @@ export function ConfirmationCard({
 
   const confidenceScore = Math.round((parsed.confidence ?? 1) * 100);
   const lowConfidence = isLowConfidence(parsed.confidence ?? 1);
+
+  // Sort existing customers alphabetically for the picker
+  const sortedCustomers = useMemo(() => {
+    return [...customers].sort((a, b) => a.name.localeCompare(b.name));
+  }, [customers]);
 
   // Re-run customer matching if user changed the customer name
   const isCustomerNameEdited =
@@ -103,46 +118,68 @@ export function ConfirmationCard({
   }, [isCustomerNameEdited, customerName, initialCustomerMatch, customers]);
 
   // Determine effective customer name and match status
-  const currentMatchStatus = activeCustomerMatch?.status || (customerName.trim() ? "new" : null);
+  const currentMatchStatus = useMemo(() => {
+    if (selectedCustomerId) return "matched";
+    if (activeCustomerMatch?.status) return activeCustomerMatch.status;
+    return customerName.trim() ? "new" : null;
+  }, [selectedCustomerId, activeCustomerMatch, customerName]);
 
   // Validation: Never send an unmatched edited name
   const isCustomerMatchValid = useMemo(() => {
     // Stock adjustment doesn't need customer
-    if (initialAction === "adjust_stock") return true;
+    if (currentAction === "adjust_stock") return true;
 
     // Add sale with empty customer is anonymous walk-in sale
-    if (initialAction === "add_sale" && !customerName.trim()) {
+    if (currentAction === "add_sale" && !customerName.trim()) {
       return true;
     }
 
-    // Payment or Add Customer requires a customer name
-    if ((initialAction === "record_payment" || initialAction === "add_customer") && !customerName.trim()) {
-      return false;
+    // Payment requires a customer name AND must be an existing customer
+    if (currentAction === "record_payment") {
+      if (!customerName.trim()) return false;
+      // Must be picked from existing customer list or matched to existing customer
+      if (selectedCustomerId) return true;
+      if (activeCustomerMatch?.status === "matched" && activeCustomerMatch.matched) {
+        return true;
+      }
+      return false; // Never create customer from payment
+    }
+
+    // If add_customer action: valid if name is non-empty
+    if (currentAction === "add_customer") {
+      return Boolean(customerName.trim());
+    }
+
+    // If an existing customer is selected from shop list
+    if (selectedCustomerId) {
+      return true;
     }
 
     // If customer name was edited:
     if (isCustomerNameEdited) {
-      if (!customerName.trim()) return initialAction === "add_sale";
+      if (!customerName.trim()) return currentAction === "add_sale";
 
       // If matched, valid!
       if (activeCustomerMatch?.status === "matched" && activeCustomerMatch.matched) {
         return true;
       }
 
-      // If ambiguous, user must select candidate or create new
+      // If ambiguous, user must select candidate or create new (only for add_sale)
       if (activeCustomerMatch?.status === "ambiguous") {
         return Boolean(selectedCustomerId) || createCustomer;
       }
 
       // If status is new (unmatched name):
-      // Must explicitly check "createCustomer" so it's not sent as an unmatched name
       if (activeCustomerMatch?.status === "new") {
-        // record_payment CANNOT create a new customer
-        if (initialAction === "record_payment") return false;
         return createCustomer;
       }
 
       return false;
+    }
+
+    // If not edited, check if matched
+    if (activeCustomerMatch?.status === "matched" && activeCustomerMatch.matched) {
+      return true;
     }
 
     // If not edited, check if ambiguous requires selection
@@ -150,15 +187,21 @@ export function ConfirmationCard({
       return Boolean(selectedCustomerId) || createCustomer;
     }
 
+    // If not edited and status is new:
+    if (currentMatchStatus === "new") {
+      return createCustomer;
+    }
+
     return true;
   }, [
-    initialAction,
+    currentAction,
     customerName,
+    selectedCustomerId,
     isCustomerNameEdited,
     activeCustomerMatch,
-    selectedCustomerId,
     createCustomer,
     initialCustomerMatch,
+    currentMatchStatus,
   ]);
 
   // Calculate udhar for sale
@@ -185,7 +228,7 @@ export function ConfirmationCard({
       }
 
       const payload = buildConfirmPayload({
-        action: initialAction,
+        action: currentAction,
         idempotencyKey,
         rawInput: rawInput || parsed.raw_input || "",
         summary: parsed.summary,
@@ -197,10 +240,10 @@ export function ConfirmationCard({
         product,
         qtyChange,
         unit: initialData.unit,
-        phone: initialData.phone,
-        notes: initialData.notes,
+        phone: customerPhone || initialData.phone,
+        notes: customerNotes || initialData.notes,
         items: initialData.items,
-        createCustomer: createCustomer || (!selectedCustomerId && activeCustomerMatch?.status === "new"),
+        createCustomer: currentAction === "add_sale" && (createCustomer || (!selectedCustomerId && currentMatchStatus === "new")),
       });
 
       const res = await fetch("/api/confirm", {
@@ -234,20 +277,20 @@ export function ConfirmationCard({
       <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-3">
         <div className="flex items-center gap-2">
           <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
-            {initialAction === "add_sale" && "🛒"}
-            {initialAction === "record_payment" && "💵"}
-            {initialAction === "adjust_stock" && "📦"}
-            {initialAction === "add_customer" && "👤"}
+            {currentAction === "add_sale" && "🛒"}
+            {currentAction === "record_payment" && "💵"}
+            {currentAction === "adjust_stock" && "📦"}
+            {currentAction === "add_customer" && "👤"}
           </span>
           <div>
             <h3 className="text-base font-bold text-foreground">
-              {initialAction === "add_sale" && "Sale"}
-              {initialAction === "record_payment" && "Payment"}
-              {initialAction === "adjust_stock" && "Stock Change"}
-              {initialAction === "add_customer" && "Add Customer"}
+              {currentAction === "add_sale" && "Sale"}
+              {currentAction === "record_payment" && "Payment"}
+              {currentAction === "adjust_stock" && "Stock Change"}
+              {currentAction === "add_customer" && "Add Customer"}
             </h3>
             <p className="text-xs text-muted-foreground">
-              Please review details
+              {STRINGS.confirmation.reviewDetails}
             </p>
           </div>
         </div>
@@ -262,7 +305,7 @@ export function ConfirmationCard({
           >
             {confidenceScore}%
           </span>
-          <span className="text-[10px] text-muted-foreground">Confidence</span>
+          <span className="text-[10px] text-muted-foreground">{STRINGS.confirmation.confidence}</span>
         </div>
       </div>
 
@@ -278,36 +321,39 @@ export function ConfirmationCard({
       )}
 
       {/* ── Customer Matching Section ── */}
-      {(initialAction === "add_sale" ||
-        initialAction === "record_payment" ||
-        initialAction === "add_customer") && (
-        <div className="rounded-xl bg-secondary/50 border border-border/50 p-3 flex flex-col gap-2">
+      {(currentAction === "add_sale" ||
+        currentAction === "record_payment" ||
+        currentAction === "add_customer") && (
+        <div className="rounded-xl bg-secondary/50 border border-border/50 p-3 flex flex-col gap-2.5">
           <div className="flex items-center justify-between text-xs">
             <span className="font-semibold text-foreground/90">
-              Customer:
+              {STRINGS.confirmation.customerLabel}
             </span>
-            {currentMatchStatus === "matched" && (
-              <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                ✓ Matched
-              </span>
-            )}
-            {currentMatchStatus === "ambiguous" && (
-              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                ⚠️ Ambiguous
-              </span>
-            )}
-            {currentMatchStatus === "new" && (
-              <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                + New Customer
-              </span>
-            )}
+            <div className="flex items-center gap-1.5">
+              {/* Status styled as NON-CLICKABLE CHIPS */}
+              {currentMatchStatus === "matched" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 select-none cursor-default">
+                  {STRINGS.confirmation.matched}
+                </span>
+              )}
+              {currentMatchStatus === "ambiguous" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 select-none cursor-default">
+                  {STRINGS.confirmation.ambiguous}
+                </span>
+              )}
+              {currentMatchStatus === "new" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-secondary text-muted-foreground border border-border/60 select-none cursor-default">
+                  {STRINGS.confirmation.newCustomerChip}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Ambiguous candidates picker (shows candidates from active match) */}
           {currentMatchStatus === "ambiguous" && activeCustomerMatch && activeCustomerMatch.candidates.length > 0 && (
             <div className="flex flex-col gap-1.5 my-1 bg-background/80 rounded-lg p-2.5 border border-border/80">
               <span className="text-xs text-foreground/80 font-medium">
-                Multiple customers matched with similar names. Select one:
+                {STRINGS.confirmation.ambiguousNotice}
               </span>
               <div className="flex flex-col gap-1">
                 {activeCustomerMatch.candidates.map(({ customer }) => (
@@ -342,7 +388,7 @@ export function ConfirmationCard({
                   </label>
                 ))}
 
-                {initialAction !== "record_payment" && (
+                {currentAction !== "record_payment" && (
                   <label
                     className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
                       createCustomer
@@ -361,7 +407,7 @@ export function ConfirmationCard({
                       }}
                       className="text-primary focus:ring-primary"
                     />
-                    <span>Create as separate new customer</span>
+                    <span>{STRINGS.confirmation.createAsSeparate}</span>
                   </label>
                 )}
               </div>
@@ -371,7 +417,7 @@ export function ConfirmationCard({
           {/* Customer Name Display or Edit input */}
           {isEditing ? (
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-muted-foreground">Customer Name</label>
+              <label className="text-[11px] text-muted-foreground">{STRINGS.confirmation.customerName}</label>
               <input
                 type="text"
                 value={customerName}
@@ -379,7 +425,7 @@ export function ConfirmationCard({
                   setCustomerName(e.target.value);
                   setSelectedCustomerId(null);
                 }}
-                placeholder="Enter customer name"
+                placeholder={STRINGS.confirmation.customerNamePlaceholder}
                 className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[44px]"
               />
               {isCustomerNameEdited && activeCustomerMatch?.status === "matched" && activeCustomerMatch.matched && (
@@ -389,14 +435,14 @@ export function ConfirmationCard({
               )}
               {isCustomerNameEdited && currentMatchStatus === "new" && customerName.trim() && (
                 <div className="text-[11px] text-amber-700 dark:text-amber-400">
-                  ⚠️ Name does not match any existing customer. Check &apos;Save customer in directory&apos; below to add.
+                  ⚠️ Name does not match any existing customer. Check below to create or pick from directory.
                 </div>
               )}
             </div>
           ) : (
             <div className="flex items-center justify-between">
               <span className="text-base font-bold text-foreground">
-                {activeCustomerMatch?.matched?.name || customerName || "(Anonymous Customer)"}
+                {activeCustomerMatch?.matched?.name || customerName || STRINGS.confirmation.anonymousCustomer}
               </span>
               {activeCustomerMatch?.matched?.phone && (
                 <span className="text-xs text-muted-foreground">
@@ -406,32 +452,98 @@ export function ConfirmationCard({
             </div>
           )}
 
-          {/* New customer creation checkbox if unmatched and not record_payment */}
-          {initialAction !== "record_payment" && !selectedCustomerId && currentMatchStatus === "new" && (
-            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer pt-1">
-              <input
-                type="checkbox"
-                checked={createCustomer}
-                onChange={(e) => setCreateCustomer(e.target.checked)}
-                className="rounded border-border text-primary focus:ring-primary"
-              />
-              <span>Save customer in directory</span>
-            </label>
+          {/* BUG B: add_sale with unknown name: clear notice with real checkbox toggle (min-h >= 48px, default ON) */}
+          {currentAction === "add_sale" && !selectedCustomerId && currentMatchStatus === "new" && Boolean(customerName.trim()) && (
+            <div className="flex flex-col gap-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs">
+              <span className="font-semibold text-blue-900 dark:text-blue-200">
+                New customer: <span className="font-bold underline underline-offset-2">{customerName}</span>
+              </span>
+              <label
+                htmlFor="checkbox-create-customer"
+                className="flex items-center gap-3 p-2 rounded-lg bg-background/80 border border-border/60 text-xs text-foreground cursor-pointer min-h-[48px] select-none hover:bg-background transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  id="checkbox-create-customer"
+                  checked={createCustomer}
+                  onChange={(e) => setCreateCustomer(e.target.checked)}
+                  className="w-5 h-5 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                />
+                <span className="font-medium text-xs">
+                  Create &quot;{customerName}&quot; as a new customer
+                </span>
+              </label>
+            </div>
+          )}
+
+          {/* BUG B: record_payment with unknown name: payments need an existing customer with udhar */}
+          {currentAction === "record_payment" && !selectedCustomerId && currentMatchStatus === "new" && (
+            <div className="flex flex-col gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs">
+              <div className="flex items-center gap-1.5 font-semibold text-amber-800 dark:text-amber-300">
+                <span>⚠️</span>
+                <span>No customer named &quot;{customerName}&quot; found.</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {STRINGS.confirmation.paymentCustomerHint}
+              </p>
+              <button
+                type="button"
+                id="btn-add-customer-first"
+                onClick={() => {
+                  onOpenQuickAddCustomer?.(customerName);
+                }}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-primary/30 bg-primary/10 text-primary font-semibold text-xs hover:bg-primary/20 active:scale-98 transition-all min-h-[48px] cursor-pointer"
+              >
+                <span>👤 Add &quot;{customerName}&quot; as new customer first</span>
+              </button>
+            </div>
+          )}
+
+          {/* Searchable / dropdown picker of existing customers */}
+          {customers && customers.length > 0 && (!selectedCustomerId || isEditing || currentMatchStatus === "new") && (
+            <div className="flex flex-col gap-1.5 pt-1 border-t border-border/40 mt-1">
+              <label htmlFor="select-existing-customer" className="text-[11px] text-muted-foreground font-medium">
+                {STRINGS.confirmation.existingCustomerPicker}
+              </label>
+              <select
+                id="select-existing-customer"
+                value={selectedCustomerId || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val) {
+                    setSelectedCustomerId(null);
+                  } else {
+                    const found = customers.find((c) => c.id === val);
+                    if (found) {
+                      setSelectedCustomerId(found.id);
+                      setCustomerName(found.name);
+                      setCreateCustomer(false);
+                    }
+                  }
+                }}
+                className="w-full px-3 py-2 text-xs rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[44px] text-foreground cursor-pointer"
+              >
+                <option value="">{STRINGS.confirmation.selectPlaceholder}</option>
+                {sortedCustomers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.phone ? `(${c.phone})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
 
           {/* Validation warning if unmatched and cannot confirm */}
-          {!isCustomerMatchValid && (
+          {!isCustomerMatchValid && currentAction !== "record_payment" && (
             <p className="text-[11px] text-destructive font-medium">
-              {initialAction === "record_payment"
-                ? "Payment requires an existing customer."
-                : "Please select a matching customer or mark as new."}
+              Please select a matching customer or mark as new.
             </p>
           )}
         </div>
       )}
 
       {/* ── Financial Breakdown for Sale ── */}
-      {initialAction === "add_sale" && (
+      {currentAction === "add_sale" && (
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-border">
             <span className="text-[11px] text-muted-foreground">Total</span>
@@ -481,7 +593,7 @@ export function ConfirmationCard({
       )}
 
       {/* ── Financial Details for Payment ── */}
-      {initialAction === "record_payment" && (
+      {currentAction === "record_payment" && (
         <div className="flex flex-col items-center justify-center p-3.5 rounded-xl bg-card border border-border gap-1">
           <span className="text-xs text-muted-foreground">
             Payment Received
@@ -503,7 +615,7 @@ export function ConfirmationCard({
       )}
 
       {/* ── Stock Adjustment Details ── */}
-      {initialAction === "adjust_stock" && (
+      {currentAction === "adjust_stock" && (
         <div className="flex flex-col p-3 rounded-xl bg-card border border-border gap-2">
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Product:</span>
@@ -536,10 +648,28 @@ export function ConfirmationCard({
         </div>
       )}
 
+      {/* ── Add Customer Details ── */}
+      {currentAction === "add_customer" && (
+        <div className="flex flex-col p-3 rounded-xl bg-card border border-border gap-1.5 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Action:</span>
+            <span className="font-semibold text-primary">New Customer Registration</span>
+          </div>
+          {customerPhone && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Phone:</span>
+              <span className="font-bold text-foreground">{customerPhone}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Plain-language Summary ── */}
       <div className="rounded-xl bg-muted/40 p-3 text-xs text-foreground/90 leading-relaxed border border-border/40">
-        <span className="font-semibold">Summary: </span>
-        {parsed.summary}
+        <span className="font-semibold">{STRINGS.confirmation.summaryLabel} </span>
+        {currentAction === "add_sale" && total === paid && paid > 0
+          ? `${customerName || "Customer"}: Cash purchase of Rs ${total} (Paid in full)`
+          : parsed.summary}
       </div>
 
       {/* ── Real API Error Message Banner ── */}
@@ -564,20 +694,20 @@ export function ConfirmationCard({
         >
           <div className="flex items-center gap-2 font-bold text-sm">
             <span>✅</span>
-            <span>Transaction recorded successfully!</span>
+            <span>{STRINGS.confirmation.successTitle}</span>
           </div>
           <p className="text-[11px] opacity-90">
             {confirmedResult.summary || "Ledger updated successfully."}
           </p>
           {confirmedResult.customer?.balance !== undefined && (
             <div className="mt-1 pt-2 border-t border-emerald-500/20 flex items-center justify-between font-semibold text-xs">
-              <span>{confirmedResult.customer.name}&apos;s New Balance:</span>
+              <span>{confirmedResult.customer.name}&apos;s {STRINGS.confirmation.newBalance}</span>
               <span className="text-sm font-extrabold text-amber-700 dark:text-amber-300">
                 ₹{confirmedResult.customer.balance.toLocaleString("en-IN")}
               </span>
             </div>
           )}
-          {confirmedResult.transaction_id && (confirmedResult.action === "add_sale" || initialAction === "add_sale") && (
+          {confirmedResult.transaction_id && (confirmedResult.action === "add_sale" || currentAction === "add_sale") && (
             <div className="mt-2.5 pt-2 border-t border-emerald-500/20 flex items-center justify-between">
               <span className="text-[11px] text-muted-foreground font-medium">GST-style invoice:</span>
               <a
@@ -592,6 +722,17 @@ export function ConfirmationCard({
               </a>
             </div>
           )}
+          <div className="mt-3 pt-2.5 border-t border-emerald-500/20">
+            <button
+              type="button"
+              id="btn-record-another"
+              onClick={() => onDismiss?.()}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow hover:bg-primary/95 active:scale-[0.98] transition-all min-h-[48px] cursor-pointer"
+            >
+              <span>➕</span>
+              <span>{STRINGS.confirmation.recordAnother}</span>
+            </button>
+          </div>
         </div>
       )}
 

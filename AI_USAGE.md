@@ -723,11 +723,70 @@
 3. Aligned test assertions in `tests/language-pass.test.ts` to match proper noun capitalization.
 4. Updated existing tests to check for the new English copy, language pills, and clean action button labels.
 
+## Phase 15: Confirmation Flow Bug Fixes (BUG A Idempotency Lifecycle & BUG B Unknown Customer Actions)
 
+### What was built
+- **BUG A: Per-Parse Idempotency Key Lifecycle & Full Remounting**:
+  - Implemented `ParseSession` interface and lifecycle helper functions in `src/lib/confirm-helpers.ts`:
+    - `createParseSession(parseResult, rawInput)`: guarantees every parse result generates its own fresh `crypto.randomUUID()` idempotency key immediately when `/api/parse` returns.
+    - `prepareRetryPayload(session, overrides)`: reuses the exact same idempotency key if a network request fails and the user retries confirming the SAME entry.
+    - `resetParseSession()`: returns `null` to drop state upon confirmation dismissal or cancellation.
+  - Refactored `src/app/app/page.tsx` to store `parseSession: ParseSession | null` instead of decoupled state variables.
+  - Rendered `<ConfirmationCard key={parseSession.idempotencyKey} ... />` so React cleanly unmounts and remounts a brand-new card instance upon every parse result.
+  - Added "Record another entry" button (`id="btn-record-another"`, min-h >= 48px) inside the confirmation card success banner. Clicking it invokes `onDismiss`, clearing `parseSession`, `typedInput`, and the speech transcript, completely dropping the old card state.
+  - Handled Cancel to drop state immediately.
+  - Disabled the Confirm button only while its own request is in flight (`isSaving`).
+- **BUG B: Action-Specific Unknown Customer Handling & Non-Clickable Status Chips**:
+  - `add_sale` with an unknown name:
+    - Displays a clear "New customer: <name>" notice.
+    - Provides an accessible checkbox/toggle (`id="checkbox-create-customer"`, min-h >= 48px, default ON) labeled "Create <name> as a new customer".
+    - Confirm button creates the customer and records the sale in the same atomic Postgres ledger call (`create_customer: true`).
+    - Confirm is enabled only when the toggle is ON or an existing customer is selected from the picker.
+  - `record_payment` with an unknown name:
+    - Displays "No customer named \"<name>\" found." warning.
+    - Provides a searchable customer picker (`id="select-existing-customer"`) sorting best candidates first.
+    - Provides an "Add as new customer first" button (`id="btn-add-customer-first"`, min-h >= 48px) that opens the quick-add form prefilled with the customer's name.
+    - Confirm button stays disabled until an existing debtor is chosen. Never creates a customer from a payment.
+  - Status chips (Matched / Ambiguous / New):
+    - Re-styled as non-clickable visual chips (`select-none cursor-default`) distinct from interactive buttons.
+- **Centralized Roman English Copy (`src/lib/strings.ts`)**:
+  - Added all confirmation notices, toggles, and button labels to `STRINGS.confirmation` with zero Devanagari characters.
+- **Automated Tests**:
+  - Added `src/lib/confirm-key-lifecycle.test.ts` and `tests/confirm-key-lifecycle.test.ts` covering the 3 key lifecycle requirements:
+    1. Two sequential parses for the same customer produce different keys and two distinct confirm payloads.
+    2. A retry after network failure of the same entry reuses its key.
+    3. After success or dismiss, state resets and subsequent parse gets a fresh key.
+  - Added server-side simulation test in `tests/ledger-math.test.ts` and `tests/confirm-key-lifecycle.test.ts` proving two confirms with different keys for the same customer record two distinct transactions and correctly sum both udhar amounts in the customer's balance.
 
+### Prompt used
+> /plan Two bugs in the confirmation flow. Read AGENTS.md and the existing code first (src/components/confirmation-card.tsx, src/app/app/page.tsx, src/lib/confirm-helpers.ts). Change only what these fixes need.
+>
+> BUG A (critical): after confirming one entry for a customer, a second entry for the same customer is not recorded; the UI shows the previous entry again. Required behavior: every parse result gets its own fresh idempotency_key (crypto.randomUUID()) created when /api/parse returns; the key lives with that parse result only, never in a long-lived ref or module state. Render the confirmation card with key={that key} so it fully remounts. After a successful confirm, show the success state with a "Record another entry" button, clear the typed input and transcript, and drop the old card state. Cancel also drops state. A new parse while a card is open replaces the card with a new key. Retry after a network failure of the SAME entry reuses its key. The Confirm button is disabled only while its own request is in flight. Add tests in src/lib for the key lifecycle: (1) two sequential parses for the same customer produce different keys and two confirm payloads; (2) a retry of the same parse reuses the key; (3) after success the state resets. Also add a server-side test or script showing two confirms with different keys for the same customer create two transactions and the balance adds both.
+>
+> BUG B: "+ New Customer" in the card is a non-interactive badge. Fix by action type:
+> - add_sale with an unknown name: show a clear "New customer: <name>" notice with a real checkbox/toggle (min 48px, default ON) "Create <name> as a new customer"; Confirm creates the customer and records the sale in the same ledger call (the RPC already supports create_customer). Confirm is enabled only when the toggle is on or an existing customer is picked from the picker.
+> - record_payment with an unknown name: payments need an existing customer with udhar. Show "No customer named <name> found." with a picker of existing customers (searchable, top candidates first) and an "Add as new customer first" button that opens the quick-add form prefilled with the name, then re-runs matching. Confirm stays disabled until an existing customer is chosen. Never create a customer from a payment.
+> - Style statuses (Matched / Ambiguous / New) as non-clickable chips, visually different from buttons, so nothing looks clickable that isn't.
+> Keep all copy English and Hinglish in Roman letters only. Do not change the /api routes, SQL, rate limiting or the parser. Next.js 16 Cache Components is on: keep Suspense boundaries intact. Show the plan first. At the end run npm run lint, npm test AND npm run build and show the output. Append to AI_USAGE.md, including the root cause you found.
 
+### Root causes found
+1. **Root cause of BUG A**:
+   - In `src/app/app/page.tsx`, `parseResult` and `activeIdempotencyKey` were stored as uncoupled state variables, and `<ConfirmationCard>` was rendered without a `key` prop (`key={...}` was absent).
+   - Because React preserves component instances when props change unless a distinct `key` is specified, the internal state of `<ConfirmationCard>` (specifically `confirmedResult`) was retained after the first transaction succeeded.
+   - When the user parsed a second entry for the same customer, `page.tsx` updated `parseResult`, but `<ConfirmationCard>` did not remount. Its `confirmedResult` was still truthy, so line 694 (`{confirmedResult && (...)}`) caused the card to continue displaying the success banner of entry #1 instead of rendering the new unconfirmed transaction.
+2. **Root cause of BUG B**:
+   - The "+ New Customer" chip was rendered as a static badge styled like a button with a `+` symbol, creating the false affordance of a clickable button.
+   - For `record_payment`, creating a new customer violates database business logic (`002_ledger.sql` throws an exception if payment exceeds udhar balance, and a new customer has 0 balance). Payments must strictly link to an existing debtor in the ledger.
 
+### What AI got wrong
+1. **Unreachable Type-Narrowed Checks**: In `isCustomerMatchValid`, after handling `currentAction === "record_payment"` completely with early returns, subsequent checks `if (currentAction === "record_payment")` caused TypeScript error TS2367 (`This comparison appears to be unintentional because the types '"add_sale"' and '"record_payment"' have no overlap`).
+2. **Missing Import in page.tsx**: Omitting `generateIdempotencyKey` when updating `src/app/app/page.tsx` imports broke the quick action form handlers.
+3. **Legacy Test Assertions in `tests/app-ui.test.ts` and `tests/app-responsive.test.ts`**: Existing test suites were asserting legacy recovery buttons and decoupled `setParseResult(null)` calls.
 
+### How it was fixed
+1. Removed impossible redundant branch comparisons in `isCustomerMatchValid`, allowing TypeScript control flow analysis to pass cleanly.
+2. Restored `generateIdempotencyKey` in `src/app/app/page.tsx` imports alongside `ParseSession` and `createParseSession`.
+3. Updated unit tests to assert the new `ParseSession` lifecycle, `checkbox-create-customer` toggle, and `btn-record-another` button.
 
 
 

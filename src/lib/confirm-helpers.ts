@@ -27,6 +27,44 @@ export interface ConfirmPayloadInput {
   createCustomer?: boolean;
 }
 
+export interface ParseApiResponse {
+  success: boolean;
+  parsed: {
+    action: "add_sale" | "record_payment" | "adjust_stock" | "add_customer";
+    data: {
+      customer?: string | null;
+      items?: Array<{ product: string; qty: number; unit?: string; unit_price?: number; total?: number }>;
+      total?: number;
+      paid?: number;
+      amount?: number;
+      product?: string;
+      qty_change?: number;
+      unit?: string;
+      name?: string;
+      phone?: string | null;
+      notes?: string | null;
+    };
+    confidence: number;
+    summary: string;
+    raw_input?: string;
+  };
+  customer_match?: {
+    status: "matched" | "ambiguous" | "new";
+    matched: { id: string; name: string; phone?: string | null } | null;
+    candidates: Array<{ customer: { id: string; name: string; phone?: string | null }; score: number }>;
+    score: number;
+    originalQuery: string;
+    normalizedQuery: string;
+    proposedName?: string;
+  } | null;
+}
+
+export interface ParseSession {
+  idempotencyKey: string;
+  parseResult: ParseApiResponse;
+  rawInput: string;
+}
+
 /**
  * Generates a clean UUID idempotency key for client-side confirmation requests.
  */
@@ -40,6 +78,54 @@ export function generateIdempotencyKey(): string {
     const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
+}
+
+/**
+ * Creates a fresh ParseSession with its own unique idempotency key.
+ * Every parse result gets a fresh UUID so sequential entries never collide.
+ */
+export function createParseSession(parseResult: ParseApiResponse, rawInput: string): ParseSession {
+  return {
+    idempotencyKey: generateIdempotencyKey(),
+    parseResult,
+    rawInput: rawInput || parseResult.parsed?.raw_input || "",
+  };
+}
+
+/**
+ * Prepares payload for a retry of an existing parse session, preserving the exact same idempotencyKey.
+ */
+export function prepareRetryPayload(
+  session: ParseSession,
+  overrides?: Partial<ConfirmPayloadInput>
+): Record<string, unknown> {
+  const p = session.parseResult.parsed;
+  return buildConfirmPayload({
+    action: overrides?.action || p.action,
+    idempotencyKey: session.idempotencyKey,
+    rawInput: session.rawInput,
+    summary: p.summary,
+    confidence: p.confidence,
+    customerName: overrides?.customerName !== undefined ? overrides.customerName : p.data.customer || p.data.name,
+    total: overrides?.total !== undefined ? overrides.total : p.data.total,
+    paid: overrides?.paid !== undefined ? overrides.paid : p.data.paid,
+    amount: overrides?.amount !== undefined ? overrides.amount : p.data.amount,
+    product: overrides?.product !== undefined ? overrides.product : p.data.product,
+    qtyChange: overrides?.qtyChange !== undefined ? overrides.qtyChange : p.data.qty_change,
+    unit: overrides?.unit !== undefined ? overrides.unit : p.data.unit,
+    phone: overrides?.phone !== undefined ? overrides.phone : p.data.phone,
+    notes: overrides?.notes !== undefined ? overrides.notes : p.data.notes,
+    items: overrides?.items !== undefined ? overrides.items : p.data.items,
+    createCustomer: overrides?.createCustomer,
+    ...overrides,
+  });
+}
+
+/**
+ * Resets a parse session to null.
+ */
+export function resetParseSession(): null {
+  return null;
 }
 
 /**
@@ -64,8 +150,8 @@ export function buildConfirmPayload(input: ConfirmPayloadInput): Record<string, 
   };
 
   switch (input.action) {
-    case "add_sale":
-      return {
+    case "add_sale": {
+      const salePayload: Record<string, unknown> = {
         ...base,
         customer: input.customerName?.trim() || null,
         total: Number(input.total ?? 0),
@@ -73,6 +159,11 @@ export function buildConfirmPayload(input: ConfirmPayloadInput): Record<string, 
         items: Array.isArray(input.items) ? input.items : [],
         create_customer: Boolean(input.createCustomer),
       };
+      if (input.phone?.trim()) {
+        salePayload.customer_phone = input.phone.trim();
+      }
+      return salePayload;
+    }
 
     case "record_payment":
       return {
