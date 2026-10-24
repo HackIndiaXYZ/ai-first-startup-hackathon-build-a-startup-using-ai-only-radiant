@@ -16,7 +16,6 @@ describe("App Desktop Layout Polish (>= 1024px)", () => {
 
   describe("Requirement 1: Recent Entries Card & Quick Actions in Desktop Left Column", () => {
     it("renders Quick Actions row with Add Customer, Record Payment, and Adjust Stock", () => {
-      assert.ok(appPageSrc.includes("त्वरित कार्य"));
       assert.ok(appPageSrc.includes("Quick actions"));
       assert.ok(appPageSrc.includes("btn-quick-add-customer"));
       assert.ok(appPageSrc.includes("btn-quick-record-payment"));
@@ -44,7 +43,7 @@ describe("App Desktop Layout Polish (>= 1024px)", () => {
     });
 
     it("renders Recent Entries card with last 5 transactions and time formatted in IST", () => {
-      assert.ok(appPageSrc.includes("हालिया लेन-देन"));
+      assert.ok(appPageSrc.includes("Recent Transactions"));
       assert.ok(appPageSrc.includes("Recent entries (last 5)"));
       assert.ok(appPageSrc.includes("Asia/Kolkata"));
       assert.ok(appPageSrc.includes("recentEntries"));
@@ -52,7 +51,6 @@ describe("App Desktop Layout Polish (>= 1024px)", () => {
     });
 
     it("provides proper empty state when no recent transactions exist", () => {
-      assert.ok(appPageSrc.includes("अभी कोई हालिया लेन-देन नहीं है"));
       assert.ok(appPageSrc.includes("No recent transactions recorded yet"));
     });
 
@@ -64,56 +62,47 @@ describe("App Desktop Layout Polish (>= 1024px)", () => {
 
   describe("Requirement 2: Top Debtors and Low Stock Headers (Single Line at 1280px, Badges, View All)", () => {
     it("Top Debtors title uses whitespace-nowrap and displays count in a small badge", () => {
-      assert.ok(appPageSrc.includes("शीर्ष बकायेदार"));
       assert.ok(appPageSrc.includes("Top Debtors"));
       assert.ok(appPageSrc.includes("whitespace-nowrap"));
       assert.ok(appPageSrc.includes("rounded-full text-[11px] font-bold bg-amber-500/10"));
-      assert.ok(appPageSrc.includes("पूरा खाता (View All) →"));
+      assert.ok(appPageSrc.includes("View All →"));
     });
 
     it("Low Stock title uses whitespace-nowrap and displays count in a small badge", () => {
-      assert.ok(appPageSrc.includes("कम स्टॉक चेतावनी"));
       assert.ok(appPageSrc.includes("Low Stock Alerts"));
       assert.ok(appPageSrc.includes("rounded-full text-[11px] font-bold bg-destructive/10"));
     });
   });
 
-  describe("Requirement 3: Stacked Bilingual Labels (Hindi Primary, English Smaller Muted Below)", () => {
-    it("sidebar displays Hindi primary with English muted below", () => {
-      assert.ok(appNavSrc.includes("दुकान मेनू"));
+  describe("Requirement 3: Clean English Labels Across App Nav and Cards", () => {
+    it("sidebar displays clean English navigation labels", () => {
+      assert.ok(appNavSrc.includes("Shop Menu"));
       assert.ok(appNavSrc.includes("Store Navigation"));
-      assert.ok(appNavSrc.includes("text-sm font-bold\">होम</span>"));
-      assert.ok(appNavSrc.includes("text-[11px] font-medium text-muted-foreground\">Home</span>"));
-      assert.ok(appNavSrc.includes("text-sm font-bold\">खाता बही</span>"));
-      assert.ok(appNavSrc.includes("text-[11px] font-medium text-muted-foreground\">Customer Ledger</span>"));
-      assert.ok(appNavSrc.includes("text-sm font-bold\">सेटिंग्स</span>"));
-      assert.ok(appNavSrc.includes("text-[11px] font-medium text-muted-foreground\">Settings</span>"));
+      assert.ok(appNavSrc.includes("Home"));
+      assert.ok(appNavSrc.includes("Ledger"));
+      assert.ok(appNavSrc.includes("Settings"));
     });
 
-    it("stat cards use stacked bilingual labels instead of long brackets", () => {
-      assert.ok(appPageSrc.includes("आज की बिक्री"));
+    it("stat cards use clean English labels", () => {
       assert.ok(appPageSrc.includes("Today&apos;s Sales"));
-      assert.ok(appPageSrc.includes("कुल उधार"));
       assert.ok(appPageSrc.includes("Total Pending Udhar"));
-      assert.ok(!appPageSrc.includes("आज की बिक्री (Today"));
-      assert.ok(!appPageSrc.includes("कुल उधार (Total"));
     });
 
-    it("section headers use stacked bilingual labels instead of brackets in h2", () => {
-      assert.ok(!appPageSrc.includes("शीर्ष बकायेदार (Top Debtors)"));
-      assert.ok(!appPageSrc.includes("कम स्टॉक चेतावनी (Low Stock)"));
+    it("section headers avoid brackets in h2", () => {
+      assert.ok(!appPageSrc.includes("Top Debtors ("));
+      assert.ok(!appPageSrc.includes("Low Stock ("));
     });
   });
 
   describe("Requirement 4: Submit Button Hint and Loading Spinner", () => {
     it("shows loading spinner inside submit button while parse is in flight", () => {
       assert.ok(appPageSrc.includes("animate-spin h-3.5 w-3.5"));
-      assert.ok(appPageSrc.includes("दर्ज हो रहा…"));
+      assert.ok(appPageSrc.includes("Recording..."));
     });
 
     it("shows short hint 'Type or speak an entry first' when input is empty and disabled", () => {
       assert.ok(appPageSrc.includes("Type or speak an entry first"));
-      assert.ok(appPageSrc.includes("💡 Type or speak an entry first (पहले बोलें या लिखें)"));
+      assert.ok(appPageSrc.includes("💡 Type or speak an entry first"));
     });
   });
 

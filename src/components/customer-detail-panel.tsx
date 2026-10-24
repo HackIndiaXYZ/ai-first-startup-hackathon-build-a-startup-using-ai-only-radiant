@@ -71,7 +71,7 @@ export function CustomerDetailPanel({
             .maybeSingle();
 
           if (custErr || !custData) {
-            setErrorMsg("ग्राहक नहीं मिला (Customer not found).");
+            setErrorMsg("Customer not found.");
             setIsLoading(false);
             return;
           }
@@ -121,7 +121,7 @@ export function CustomerDetailPanel({
         setTransactions(records);
       } catch (err: unknown) {
         console.error("Customer detail error:", err);
-        setErrorMsg("ग्राहक विवरण लोड करने में विफल (Failed to load customer details).");
+        setErrorMsg("Failed to load customer details.");
       } finally {
         setIsLoading(false);
       }
@@ -149,7 +149,7 @@ export function CustomerDetailPanel({
 
     const amt = Number(paymentAmount);
     if (isNaN(amt) || amt <= 0) {
-      setPaymentErrorMsg("कृपया सही भुगतान राशि लिखें (Valid positive amount required).");
+      setPaymentErrorMsg("Valid positive amount required.");
       return;
     }
 
@@ -166,16 +166,16 @@ export function CustomerDetailPanel({
           customer: customer.name,
           amount: amt,
           idempotency_key: generateIdempotencyKey(),
-          summary: `${customer.name} ने ₹${amt} जमा किए`,
+          summary: `${customer.name} paid Rs ${amt}`,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        setPaymentErrorMsg(formatApiError(data.error || "भुगतान दर्ज करने में विफल (Payment failed)."));
+        setPaymentErrorMsg(formatApiError(data.error || "Payment failed."));
       } else {
-        const newBal = data.new_balance !== undefined ? ` नया बकाया: ₹${Number(data.new_balance).toLocaleString("en-IN")}` : "";
-        setPaymentSuccessMsg(`✓ ₹${amt.toLocaleString("en-IN")} भुगतान दर्ज हुआ!${newBal}`);
+        const newBal = data.new_balance !== undefined ? ` New balance: ₹${Number(data.new_balance).toLocaleString("en-IN")}` : "";
+        setPaymentSuccessMsg(`✓ ₹${amt.toLocaleString("en-IN")} payment recorded!${newBal}`);
         setPaymentAmount("");
         setIsPaymentOpen(false);
         await loadCustomerData(false);
@@ -202,7 +202,7 @@ export function CustomerDetailPanel({
   const whatsappUrl =
     cleanPhone && customer && customer.balance > 0
       ? `https://wa.me/91${cleanPhone.slice(-10)}?text=${encodeURIComponent(
-          `नमस्ते ${customer.name} जी, आपकी दुकान का बकाया ₹${customer.balance.toLocaleString("en-IN")} है। कृपया समय पर भुगतान करें। धन्यवाद।`
+          `Namaste ${customer.name} ji, aapka Rs ${customer.balance.toLocaleString("en-IN")} udhar baaki hai. Please jaldi bhej dijiye.`
         )}`
       : null;
 
@@ -216,7 +216,7 @@ export function CustomerDetailPanel({
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline min-h-[48px] py-2"
         >
           <span>←</span>
-          <span>वापस खाता बही (Back to Ledger)</span>
+          <span>Back to Ledger</span>
         </Link>
       )}
 
@@ -229,7 +229,7 @@ export function CustomerDetailPanel({
             onClick={() => loadCustomerData(true)}
             className="underline font-bold text-xs hover:text-destructive/80 cursor-pointer min-h-[36px] flex items-center"
           >
-            पुनः प्रयास (Retry)
+            Retry
           </button>
         </div>
       )}
@@ -268,7 +268,7 @@ export function CustomerDetailPanel({
             >
               <div className="flex flex-col">
                 <span className="text-xs font-semibold text-muted-foreground">
-                  वर्तमान बकाया (Current Udhar Balance)
+                  Current Udhar Balance
                 </span>
                 <span
                   className={`text-2xl font-extrabold tracking-tight tabular-nums ${
@@ -287,7 +287,7 @@ export function CustomerDetailPanel({
                     : "bg-emerald-500/20 text-emerald-800 dark:text-emerald-300"
                 }`}
               >
-                {customer.balance > 0 ? "उधार शेष" : "चुकता"}
+                {customer.balance > 0 ? "Udhar Due" : "Settled"}
               </span>
             </div>
 
@@ -313,7 +313,7 @@ export function CustomerDetailPanel({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-foreground">
-                    भुगतान राशि दर्ज करें (Record Payment)
+                    Record Payment
                   </span>
                   <button
                     type="button"
@@ -338,7 +338,7 @@ export function CustomerDetailPanel({
                     required
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
-                    placeholder="₹ जमा राशि लिखें"
+                    placeholder="Enter amount to pay"
                     className="flex-1 px-3 py-2 text-sm rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none font-bold tabular-nums min-h-[44px]"
                   />
                   <button
@@ -346,7 +346,7 @@ export function CustomerDetailPanel({
                     disabled={isSubmittingPayment}
                     className="px-4 py-2 bg-green-700 text-white font-bold text-xs rounded-lg hover:bg-green-800 disabled:opacity-50 min-h-[44px] cursor-pointer flex items-center gap-1.5"
                   >
-                    {isSubmittingPayment ? "दर्ज हो रहा…" : "जमा करें (Save)"}
+                    {isSubmittingPayment ? "Recording..." : "Save Payment"}
                   </button>
                 </div>
               </form>
@@ -359,7 +359,7 @@ export function CustomerDetailPanel({
                 href="/app"
                 className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-primary text-primary-foreground font-bold text-xs shadow-xs hover:bg-primary/95 min-h-[48px] active:scale-[0.98] transition-all text-center"
               >
-                <span>➕ नया हिसाब दर्ज करें</span>
+                <span>➕ Record Entry</span>
               </Link>
 
               {/* Record Payment */}
@@ -372,7 +372,7 @@ export function CustomerDetailPanel({
                 }}
                 className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-green-700/10 border border-green-700/25 text-green-800 dark:text-green-300 font-bold text-xs hover:bg-green-700/20 min-h-[48px] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <span>💰 भुगतान लें</span>
+                <span>💰 Record Payment</span>
               </button>
             </div>
 
@@ -385,7 +385,7 @@ export function CustomerDetailPanel({
                 onClick={() => setIsReminderOpen(true)}
                 className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 text-xs font-semibold min-h-[44px] transition-colors cursor-pointer"
               >
-                <span>💬 WhatsApp रिमाइंडर भेजें</span>
+                <span>💬 Send WhatsApp Reminder</span>
               </button>
             )}
           </div>
@@ -393,7 +393,7 @@ export function CustomerDetailPanel({
           {/* Transaction History Header */}
           <div className="flex items-center justify-between pt-1">
             <h3 className="text-base font-bold text-foreground">
-              लेन-देन इतिहास (Transaction History)
+              Transaction History
             </h3>
             <span className="text-xs text-muted-foreground">
               ({transactions.length} entries)
@@ -403,7 +403,7 @@ export function CustomerDetailPanel({
           {/* Transaction History List */}
           {transactions.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground bg-card/40">
-              🎉 कोई लेन-देन दर्ज नहीं है (No transaction history yet).
+              No transaction history yet.
             </div>
           ) : (
             <div className="flex flex-col gap-2.5 max-h-[600px] overflow-y-auto pr-1">
@@ -435,7 +435,7 @@ export function CustomerDetailPanel({
                               : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
                           }`}
                         >
-                          {isSale ? "🛒 बिक्री" : "💵 भुगतान"}
+                          {isSale ? "🛒 Sale" : "💵 Payment"}
                         </span>
                         <span className="text-[11px] text-muted-foreground">
                           {formattedDate}
@@ -454,15 +454,15 @@ export function CustomerDetailPanel({
                     {isSale && (
                       <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border/40 pt-1.5">
                         <span>
-                          नकद: <strong className="text-emerald-600 tabular-nums">₹{tx.paid_amount.toLocaleString("en-IN")}</strong>
+                          Cash: <strong className="text-emerald-600 tabular-nums">₹{tx.paid_amount.toLocaleString("en-IN")}</strong>
                         </span>
                         {udharDelta > 0 ? (
                           <span className="font-semibold text-amber-700 dark:text-amber-400 tabular-nums">
-                            उधार जुड़ा: +₹{udharDelta.toLocaleString("en-IN")}
+                            Udhar added: +₹{udharDelta.toLocaleString("en-IN")}
                           </span>
                         ) : (
                           <span className="text-emerald-600 font-medium">
-                            पूरा नकद (Full Cash)
+                            Full Cash
                           </span>
                         )}
                       </div>
@@ -471,9 +471,9 @@ export function CustomerDetailPanel({
                     {/* Breakdown for Payment */}
                     {!isSale && (
                       <div className="flex items-center justify-between text-xs border-t border-border/40 pt-1.5">
-                        <span className="text-muted-foreground">जमा राशि</span>
+                        <span className="text-muted-foreground">Payment Received</span>
                         <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                          -₹{tx.paid_amount.toLocaleString("en-IN")} (उधार घटा)
+                          -₹{tx.paid_amount.toLocaleString("en-IN")} (Udhar reduced)
                         </span>
                       </div>
                     )}

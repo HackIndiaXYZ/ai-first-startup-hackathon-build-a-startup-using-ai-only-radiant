@@ -7,7 +7,7 @@ import { AppHeader, AppHeaderSkeleton } from "@/components/app-header";
 import { getIstDayRange } from "@/lib/date-utils";
 
 export const metadata = {
-  title: "DukaanAI — दुकान खाता",
+  title: "DukaanAI — Store Ledger",
   description: "AI-powered voice and udhar ledger for Indian kirana stores",
 };
 

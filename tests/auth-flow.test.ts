@@ -66,25 +66,24 @@ describe("Phase 4: Google Sign-In & Auth Flow Architecture", () => {
   });
 
   describe("2. Friendly OAuth Error Formatter (formatOAuthError)", () => {
-    it("formats user cancellation and access_denied into reassuring bilingual message", () => {
+    it("formats user cancellation and access_denied into reassuring message", () => {
       const err = formatOAuthError("access_denied", "User cancelled consent");
       assert.ok(err);
-      assert.match(err.title, /साइन-इन रद्द/);
-      assert.match(err.message, /दोबारा कोशिश/);
+      assert.match(err.title, /Sign-In Cancelled/i);
       assert.match(err.message, /cancelled/i);
     });
 
     it("formats connection and network timeouts cleanly", () => {
       const err = formatOAuthError("network_error", "Failed to fetch");
       assert.ok(err);
-      assert.match(err.title, /कनेक्शन त्रुटि/);
-      assert.match(err.message, /इंटरनेट कनेक्शन/);
+      assert.match(err.title, /Connection Error/i);
+      assert.match(err.message, /connection/i);
     });
 
     it("formats code exchange failures cleanly", () => {
       const err = formatOAuthError("exchange_failed", "Auth code expired");
       assert.ok(err);
-      assert.match(err.title, /प्रमाणीकरण विफल/);
+      assert.match(err.title, /Authentication Failed/i);
     });
 
     it("returns null when no error is present", () => {
@@ -94,14 +93,14 @@ describe("Phase 4: Google Sign-In & Auth Flow Architecture", () => {
   });
 
   describe("3. /login Page Structure & Security Guards", () => {
-    it("renders large Google sign-in button with required bilingual copy", () => {
+    it("renders large Google sign-in button with required copy", () => {
       assert.ok(
         loginSrc.includes("btn-google-signin"),
         "Google sign in button with id btn-google-signin must exist"
       );
       assert.ok(
-        loginSrc.includes("Continue with Google / Google से जारी रखें"),
-        "Must contain exact bilingual Google CTA copy"
+        loginSrc.includes("Continue with Google"),
+        "Must contain Google CTA copy"
       );
       assert.ok(
         loginSrc.includes("min-h-[54px]") || loginSrc.includes("min-h-[48px]"),
@@ -115,7 +114,7 @@ describe("Phase 4: Google Sign-In & Auth Flow Architecture", () => {
         "Try demo button with id btn-demo-signin must exist"
       );
       assert.ok(
-        loginSrc.includes("डेमो आज़माएँ") || loginSrc.includes("Try Demo"),
+        loginSrc.includes("Try Demo"),
         "Demo CTA must be present"
       );
       assert.ok(
@@ -321,12 +320,12 @@ describe("Phase 4: Google Sign-In & Auth Flow Architecture", () => {
 
     it("Settings displays Google Account for Google users and Demo Account for demo users", () => {
       assert.ok(
-        settingsPageSrc.includes("Google खाता (Google Account)"),
-        "Must show Google खाता for Google users"
+        settingsPageSrc.includes("Google Account"),
+        "Must show Google Account for Google users"
       );
       assert.ok(
-        settingsPageSrc.includes("डेमो खाता (Demo Account)"),
-        "Must show डेमो खाता for demo users"
+        settingsPageSrc.includes("Demo Account"),
+        "Must show Demo Account for demo users"
       );
     });
   });

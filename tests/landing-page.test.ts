@@ -45,11 +45,11 @@ describe("Landing Page — Architecture, Design, Sections & Isolation", () => {
       "Hero must contain tagline: 'Talk to your shop. DukaanAI keeps the books.'"
     );
 
-    // Hindi translation
+    // English language pill
     assert.ok(
-      content.includes("अपनी दुकान से बात करो। DukaanAI हिसाब रखेगा।") ||
-        content.includes("दुकान"),
-      "Hero must contain Hindi copy"
+      content.includes("Understands Hindi, Hinglish & English") ||
+        content.includes("Understands Hindi, Hinglish &amp; English"),
+      "Hero must contain 'Understands Hindi, Hinglish & English'"
     );
   });
 
@@ -89,15 +89,15 @@ describe("Landing Page — Architecture, Design, Sections & Isolation", () => {
     const content = fs.readFileSync(workflowPath, "utf-8");
 
     assert.ok(
-      content.includes("Talk") || content.includes("बोलो"),
+      content.includes("Talk"),
       "Workflow must include Talk step"
     );
     assert.ok(
-      content.includes("Confirm") || content.includes("जांचें"),
+      content.includes("Confirm"),
       "Workflow must include Confirm step"
     );
     assert.ok(
-      content.includes("Ledger") || content.includes("WhatsApp") || content.includes("खाता"),
+      content.includes("Ledger") || content.includes("WhatsApp"),
       "Workflow must include Ledger & WhatsApp reminder step"
     );
   });
@@ -114,9 +114,9 @@ describe("Landing Page — Architecture, Design, Sections & Isolation", () => {
     );
 
     // Must contain confirmation elements: total, paid, udhar, Confirm/Edit/Cancel
-    assert.ok(content.includes("Confirm") || content.includes("स्वीकार करें"), "Preview must show Confirm button");
-    assert.ok(content.includes("Edit") || content.includes("बदलें"), "Preview must show Edit button");
-    assert.ok(content.includes("Cancel") || content.includes("रद्द करें"), "Preview must show Cancel button");
+    assert.ok(content.includes("Confirm"), "Preview must show Confirm button");
+    assert.ok(content.includes("Edit"), "Preview must show Edit button");
+    assert.ok(content.includes("Cancel"), "Preview must show Cancel button");
   });
 
   it("should clearly label stat numbers as illustrative with footnote", () => {
@@ -126,8 +126,7 @@ describe("Landing Page — Architecture, Design, Sections & Isolation", () => {
 
     assert.ok(
       content.toLowerCase().includes("illustrative") ||
-        content.includes("*") ||
-        content.includes("काल्पनिक"),
+        content.includes("*"),
       "Stat strip must clearly label metrics as illustrative"
     );
   });
@@ -147,21 +146,21 @@ describe("Landing Page — Architecture, Design, Sections & Isolation", () => {
     );
   });
 
-  it("should handle demo auth flow with 'डेमो आज़माएँ / Try demo' and 'दुकान में जाएं / Go to Shop'", () => {
+  it("should handle demo auth flow with 'Try demo' and 'Go to Shop'", () => {
     const authBtnPath = path.join(landingDir, "demo-auth-button.tsx");
     assert.ok(fs.existsSync(authBtnPath), "demo-auth-button.tsx must exist");
     const content = fs.readFileSync(authBtnPath, "utf-8");
 
     // Unauthenticated copy
     assert.ok(
-      content.includes("डेमो आज़माएँ") || content.includes("Try demo"),
-      "Auth button must include 'डेमो आज़माएँ / Try demo'"
+      content.includes("Try demo"),
+      "Auth button must include 'Try demo'"
     );
 
     // Authenticated copy
     assert.ok(
-      content.includes("दुकान में जाएं") || content.includes("Go to Shop"),
-      "Auth button must include 'दुकान में जाएं / Go to Shop'"
+      content.includes("Go to Shop"),
+      "Auth button must include 'Go to Shop'"
     );
 
     // Triggers /api/auth/demo

@@ -43,7 +43,7 @@ export interface FriendlyAuthError {
 }
 
 /**
- * Translates OAuth errors into clear, friendly Hindi + English messages.
+ * Translates OAuth errors into clear, friendly English messages.
  */
 export function formatOAuthError(
   error: string | null | undefined,
@@ -60,32 +60,32 @@ export function formatOAuthError(
     lower.includes("user_denied")
   ) {
     return {
-      title: "साइन-इन रद्द किया गया (Sign-In Cancelled)",
+      title: "Sign-In Cancelled",
       message:
-        "Google साइन-इन प्रक्रिया रद्द कर दी गई। आप जब चाहें दोबारा कोशिश कर सकते हैं या डेमो देख सकते हैं। (Google sign-in was cancelled. You can try again anytime or explore the instant demo.)",
+        "Google sign-in was cancelled. You can try again anytime or explore the instant demo.",
     };
   }
 
   if (lower.includes("network") || lower.includes("fetch") || lower.includes("timeout")) {
     return {
-      title: "कनेक्शन त्रुटि (Connection Error)",
+      title: "Connection Error",
       message:
-        "सर्वर से संपर्क नहीं हो सका। कृपया अपना इंटरनेट कनेक्शन जांचें और पुनः प्रयास करें। (Unable to reach authentication server. Please check your internet connection.)",
+        "Unable to reach authentication server. Please check your internet connection and try again.",
     };
   }
 
   if (lower.includes("exchange_failed") || lower.includes("code_exchange")) {
     return {
-      title: "प्रमाणीकरण विफल (Authentication Failed)",
+      title: "Authentication Failed",
       message:
-        "सत्र स्थापित नहीं हो सका। कृपया दोबारा लॉगिन करें। (Could not establish session from OAuth code. Please try signing in again.)",
+        "Could not establish session from OAuth code. Please try signing in again.",
     };
   }
 
   return {
-    title: "साइन-इन में समस्या (Sign-In Issue)",
+    title: "Sign-In Issue",
     message:
       errorDescription ||
-      "Google साइन-इन पूरा नहीं हो सका। कृपया पुनः प्रयास करें। (Unable to complete Google sign-in. Please try again.)",
+      "Unable to complete Google sign-in. Please try again.",
   };
 }

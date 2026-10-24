@@ -187,7 +187,7 @@ function DashboardContent() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setDashboardError("उपयोगकर्ता प्रमाणीकरण आवश्यक है (User authentication required).");
+        setDashboardError("User authentication required.");
         setIsLoadingDashboard(false);
         return;
       }
@@ -208,8 +208,8 @@ function DashboardContent() {
           .from("shops")
           .insert({
             owner_id: user.id,
-            name: "मेरी दुकान / My Dukaan",
-            language: "hi",
+            name: "My Dukaan",
+            language: "en",
           })
           .select("id, name")
           .single();
@@ -220,7 +220,7 @@ function DashboardContent() {
       }
 
       if (shopErr || !shop) {
-        setDashboardError("दुकान नहीं मिली (Shop profile not found).");
+        setDashboardError("Shop profile not found.");
         setIsLoadingDashboard(false);
         return;
       }
@@ -326,13 +326,13 @@ function DashboardContent() {
             raw_input: r.raw_input,
             created_at: r.created_at,
             customer_id: r.customer_id,
-            customer_name: r.customer_id ? custMap.get(r.customer_id) || "ग्राहक" : "सीधा नकद ग्राहक",
+            customer_name: r.customer_id ? custMap.get(r.customer_id) || "Customer" : "Walk-in Cash Customer",
           }))
         );
       }
     } catch (err: unknown) {
       console.error("Dashboard fetch error:", err);
-      setDashboardError("डैशबोर्ड डेटा लोड करने में त्रुटि (Failed to load dashboard data).");
+      setDashboardError("Failed to load dashboard data.");
     } finally {
       setIsLoadingDashboard(false);
     }
@@ -360,15 +360,15 @@ function DashboardContent() {
       const { error } = await supabase.rpc("load_sample_data");
 
       if (error) {
-        setDashboardError(`नमूना डेटा लोड त्रुटि: ${error.message}`);
+        setDashboardError(`Sample data error: ${error.message}`);
       } else {
-        setSampleSuccessMsg("नमूना किराना डेटा (ग्राहक व सामान) सफलतापूर्वक लोड हुआ!");
+        setSampleSuccessMsg("Sample kirana data (customers & inventory) loaded successfully!");
         await loadDashboardData(true);
         setTimeout(() => setSampleSuccessMsg(null), 5000);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Network error";
-      setDashboardError(`त्रुटि: ${msg}`);
+      setDashboardError(`Error: ${msg}`);
     } finally {
       setIsLoadingSample(false);
     }
@@ -401,7 +401,7 @@ function DashboardContent() {
 
     // Set 15s notice timer
     timer15sRef.current = setTimeout(() => {
-      setParseTimerMessage("Taking longer than usual… (सामान्य से अधिक समय लग रहा है…)");
+      setParseTimerMessage("Taking longer than usual… please wait a moment…");
     }, 15000);
 
     // Set 30s abort timer
@@ -420,7 +420,7 @@ function DashboardContent() {
       const data = await res.json();
 
       if (!res.ok) {
-        setParseError(formatApiError(data.error || "पार्स करने में त्रुटि हुई (Parsing failed)."));
+        setParseError(formatApiError(data.error || "Parsing failed. Please try again."));
       } else {
         const newKey = generateIdempotencyKey();
         setActiveIdempotencyKey(newKey);
@@ -432,7 +432,7 @@ function DashboardContent() {
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") {
-        setParseError("अनुरोध समय समाप्त (30s timeout). सर्वर से उत्तर नहीं मिला। कृपया पुनः प्रयास करें।");
+        setParseError("Request timed out (30s). The server did not respond in time. Please try again.");
       } else {
         setParseError(formatApiError(err));
       }
@@ -471,12 +471,12 @@ function DashboardContent() {
     e.preventDefault();
     const name = newCustName.trim();
     if (!name) {
-      setQuickActionError("कृपया ग्राहक का नाम लिखें (Customer name is required).");
+      setQuickActionError("Customer name is required.");
       return;
     }
     const phone = newCustPhone.trim() || null;
     if (phone && !/^\+?[0-9\s-]{8,15}$/.test(phone)) {
-      setQuickActionError("कृपया सही 10-अंकीय फ़ोन नंबर दर्ज करें (Invalid phone number).");
+      setQuickActionError("Please enter a valid phone number.");
       return;
     }
 
@@ -494,14 +494,14 @@ function DashboardContent() {
           phone,
           notes: newCustNotes.trim() || null,
           idempotency_key: generateIdempotencyKey(),
-          summary: `नया ग्राहक "${name}" जोड़ा गया`,
+          summary: `New customer "${name}" added`,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setQuickActionError(formatApiError(data.error || "ग्राहक जोड़ने में त्रुटि हुई (Failed to add customer)."));
+        setQuickActionError(formatApiError(data.error || "Failed to add customer."));
       } else {
-        setQuickActionNotice(`✓ नया ग्राहक "${name}" सफलतापूर्वक जुड़ गया! (Customer added successfully)`);
+        setQuickActionNotice(`✓ New customer "${name}" added successfully!`);
         setNewCustName("");
         setNewCustPhone("");
         setNewCustNotes("");
@@ -520,12 +520,12 @@ function DashboardContent() {
     e.preventDefault();
     const targetCust = customers.find((c) => c.id === paymentCustomerId);
     if (!targetCust) {
-      setQuickActionError("कृपया ग्राहक चुनें (Please select a customer).");
+      setQuickActionError("Please select a customer.");
       return;
     }
     const amt = Number(paymentAmount);
     if (isNaN(amt) || amt <= 0) {
-      setQuickActionError("कृपया सही भुगतान राशि लिखें (Valid positive payment amount required).");
+      setQuickActionError("Valid positive payment amount required.");
       return;
     }
 
@@ -542,15 +542,15 @@ function DashboardContent() {
           customer: targetCust.name,
           amount: amt,
           idempotency_key: generateIdempotencyKey(),
-          summary: `${targetCust.name} ने ₹${amt} जमा किए`,
+          summary: `${targetCust.name} paid Rs ${amt}`,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setQuickActionError(formatApiError(data.error || "भुगतान दर्ज करने में त्रुटि हुई (Failed to record payment)."));
+        setQuickActionError(formatApiError(data.error || "Failed to record payment."));
       } else {
-        const newBal = data.new_balance !== undefined ? ` नया बकाया: ₹${Number(data.new_balance).toLocaleString("en-IN")}` : "";
-        setQuickActionNotice(`✓ ${targetCust.name} का ₹${amt.toLocaleString("en-IN")} भुगतान दर्ज हुआ!${newBal}`);
+        const newBal = data.new_balance !== undefined ? ` New balance: Rs ${Number(data.new_balance).toLocaleString("en-IN")}` : "";
+        setQuickActionNotice(`✓ Payment of Rs ${amt.toLocaleString("en-IN")} recorded for ${targetCust.name}!${newBal}`);
         setPaymentCustomerId("");
         setPaymentAmount("");
         setActiveQuickAction(null);
@@ -568,12 +568,12 @@ function DashboardContent() {
     e.preventDefault();
     const targetProd = allProducts.find((p) => p.id === stockProductId);
     if (!targetProd) {
-      setQuickActionError("कृपया सामान/उत्पाद चुनें (Please select a product).");
+      setQuickActionError("Please select a product.");
       return;
     }
     const qty = Number(stockQtyChange);
     if (isNaN(qty) || qty === 0) {
-      setQuickActionError("कृपया सही मात्रा दर्ज करें (Non-zero quantity change required).");
+      setQuickActionError("Non-zero quantity change required.");
       return;
     }
 
@@ -591,15 +591,15 @@ function DashboardContent() {
           qty_change: qty,
           unit: targetProd.unit,
           idempotency_key: generateIdempotencyKey(),
-          summary: `${targetProd.name} स्टॉक ${qty > 0 ? "+" : ""}${qty} ${targetProd.unit} अपडेट हुआ`,
+          summary: `${targetProd.name} stock ${qty > 0 ? "+" : ""}${qty} ${targetProd.unit} updated`,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setQuickActionError(formatApiError(data.error || "स्टॉक अपडेट करने में त्रुटि हुई (Failed to adjust stock)."));
+        setQuickActionError(formatApiError(data.error || "Failed to adjust stock."));
       } else {
-        const newQty = data.new_stock !== undefined ? ` नया स्टॉक: ${data.new_stock} ${targetProd.unit}` : "";
-        setQuickActionNotice(`✓ ${targetProd.name} का स्टॉक अपडेट हुआ!${newQty}`);
+        const newQty = data.new_stock !== undefined ? ` New stock: ${data.new_stock} ${targetProd.unit}` : "";
+        setQuickActionNotice(`✓ ${targetProd.name} stock updated!${newQty}`);
         setStockProductId("");
         setStockQtyChange("");
         setActiveQuickAction(null);
@@ -647,14 +647,14 @@ function DashboardContent() {
                   <div className="flex items-center gap-2">
                     <span className="text-xl">👋</span>
                     <h2 className="text-sm sm:text-base font-bold text-foreground">
-                      DukaanAI में आपका स्वागत है! (Welcome)
+                      Welcome to DukaanAI!
                     </h2>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     <strong className="text-foreground">
                       Say your first sale to get started:
                     </strong>{" "}
-                    माइक दबाएं और बोलें जैसे <em>&ldquo;रमेश ने 500 का सामान लिया, 200 नकद दिए&rdquo;</em>, या तुरंत परीक्षण हेतु नमूना किराना डेटा लोड करें।
+                    Press the mic and say e.g. <em>&ldquo;Ramesh ne 500 ka saaman liya, 200 abhi diye&rdquo;</em>, or load sample data for an instant walkthrough.
                   </p>
                 </div>
                 <button
@@ -665,11 +665,11 @@ function DashboardContent() {
                   className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] shrink-0 cursor-pointer active:scale-[0.98] transition-all"
                 >
                   {isLoadingSample ? (
-                    <span>डेटा लोड हो रहा है...</span>
+                    <span>Loading sample data...</span>
                   ) : (
                     <>
                       <span>✨</span>
-                      <span>Load sample data / नमूना डेटा लोड करें</span>
+                      <span>Load sample data</span>
                     </>
                   )}
                 </button>
@@ -684,8 +684,7 @@ function DashboardContent() {
             {/* Browser Voice Compatibility Notice */}
             {!isSpeechSupported && (
               <div className="w-full text-center text-xs py-1.5 px-3 rounded-xl bg-muted/60 text-muted-foreground border border-border/50">
-                ℹ️ आवाज़ इनपुट Chrome या Edge में सबसे अच्छा काम करता है। नीचे लिखकर भी दर्ज कर सकते हैं।
-                <div className="text-[10px] opacity-75">Voice input requires Chrome/Edge. Typed entry works everywhere.</div>
+                ℹ️ Voice input works best in Chrome or Edge. You can also type below.
               </div>
             )}
 
@@ -703,10 +702,10 @@ function DashboardContent() {
                       isListening ? "text-primary animate-pulse" : "text-foreground"
                     }`}
                   >
-                    {isListening ? "सुन रहा है... बोलिए" : "बोलने के लिए टैप करें"}
+                    {isListening ? "Listening... speak now" : "Tap to speak"}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    {isListening ? "रोकने के लिए पुनः टैप करें" : "Tap to speak"}
+                    {isListening ? "Tap again to stop" : "Tap to speak"}
                   </p>
                 </div>
               </div>
@@ -715,7 +714,7 @@ function DashboardContent() {
               <div className="flex items-center gap-3 w-full lg:hidden my-0.5">
                 <div className="flex-1 h-px bg-border" />
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-                  या लिखकर दर्ज करें (Or type)
+                  Or type an entry
                 </span>
                 <div className="flex-1 h-px bg-border" />
               </div>
@@ -728,10 +727,10 @@ function DashboardContent() {
                     <div className="flex items-center justify-between text-[11px] text-primary font-semibold">
                       <span className="flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
-                        लाइव आवाज़ (Live Voice):
+                        Live Voice:
                       </span>
                       <span className="text-[10px] text-muted-foreground">
-                        बोलना समाप्त करने के लिए माइक दबाएँ
+                        Tap mic when finished speaking
                       </span>
                     </div>
                     <p className="font-medium text-sm text-foreground/90 min-h-[24px]">
@@ -771,7 +770,7 @@ function DashboardContent() {
                           }
                         }
                       }}
-                      placeholder="उदा: रमेश ने 300 रुपये जमा किए..."
+                      placeholder="e.g. Ramesh ne 500 ka saaman liya, 200 abhi diye"
                       disabled={isParsing}
                       className="w-full px-4 py-3 text-sm rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none transition-shadow min-h-[48px] pr-28"
                     />
@@ -779,7 +778,7 @@ function DashboardContent() {
                       type="submit"
                       id="btn-submit-typed"
                       disabled={!typedInput.trim() || isParsing}
-                      title={!typedInput.trim() ? "Type or speak an entry first" : "दर्ज करें"}
+                      title={!typedInput.trim() ? "Type or speak an entry first" : "Record Entry"}
                       className="absolute right-1.5 top-1.5 bottom-1.5 px-3.5 bg-primary text-primary-foreground font-bold text-xs rounded-lg shadow hover:bg-primary/95 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
                     >
                       {isParsing ? (
@@ -788,21 +787,21 @@ function DashboardContent() {
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                           </svg>
-                          <span>दर्ज हो रहा…</span>
+                          <span>Recording...</span>
                         </>
                       ) : (
-                        "दर्ज करें"
+                        "Record Entry"
                       )}
                     </button>
                   </div>
 
                   {!typedInput.trim() && !isParsing ? (
                     <span className="text-[11px] text-amber-800 dark:text-amber-400/90 text-center font-medium">
-                      💡 Type or speak an entry first (पहले बोलें या लिखें)
+                      💡 Type or speak an entry first
                     </span>
                   ) : (
                     <span className="text-[11px] text-muted-foreground text-center">
-                      हिंदी या हिंग्लिश में कोई भी लेन-देन लिखें (e.g. &quot;Anita didi 2 packet doodh 60 rs udhar&quot;)
+                      Type any transaction in Hinglish or English (e.g. &quot;Ramesh ne 500 ka saaman liya, 200 abhi diye&quot;)
                     </span>
                   )}
                 </form>
@@ -815,7 +814,7 @@ function DashboardContent() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
-                      <span>समझ रहा हूँ… / Understanding…</span>
+                      <span>Understanding entry…</span>
                     </div>
                     {parseTimerMessage && (
                       <span className="text-amber-700 dark:text-amber-400 text-[11px] font-medium animate-pulse">
@@ -835,7 +834,7 @@ function DashboardContent() {
                         onClick={() => handleParseText(lastRawInput)}
                         className="underline font-bold text-xs hover:text-destructive/80 cursor-pointer min-h-[32px] flex items-center"
                       >
-                        पुनः प्रयास करें (Retry)
+                        Retry
                       </button>
                     )}
                   </div>
@@ -871,10 +870,10 @@ function DashboardContent() {
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-foreground leading-tight">
-                    त्वरित कार्य
+                    Quick actions
                   </span>
                   <span className="text-[11px] text-muted-foreground leading-tight">
-                    Quick actions
+                    Common shop tasks
                   </span>
                 </div>
                 {activeQuickAction && (
@@ -887,7 +886,7 @@ function DashboardContent() {
                     className="text-xs text-muted-foreground hover:text-foreground font-semibold px-2 py-1 rounded-md hover:bg-muted/60 cursor-pointer"
                     aria-label="Close active quick action"
                   >
-                    ✕ बंद करें (Close)
+                    ✕ Close
                   </button>
                 )}
               </div>
@@ -907,8 +906,8 @@ function DashboardContent() {
                       : "border-border bg-background hover:bg-muted/60 hover:border-primary/40 text-foreground"
                   }`}
                 >
-                  <span className="text-xs font-bold">👤 नया ग्राहक</span>
-                  <span className="text-[10px] text-muted-foreground">Add customer</span>
+                  <span className="text-xs font-bold">👤 Add Customer</span>
+                  <span className="text-[10px] text-muted-foreground">New customer</span>
                 </button>
 
                 <button
@@ -924,8 +923,8 @@ function DashboardContent() {
                       : "border-border bg-background hover:bg-muted/60 hover:border-green-600/40 text-foreground"
                   }`}
                 >
-                  <span className="text-xs font-bold text-green-700 dark:text-green-400">💰 भुगतान लें</span>
-                  <span className="text-[10px] text-muted-foreground">Record payment</span>
+                  <span className="text-xs font-bold text-green-700 dark:text-green-400">💰 Record Payment</span>
+                  <span className="text-[10px] text-muted-foreground">Receive payment</span>
                 </button>
 
                 <button
@@ -941,8 +940,8 @@ function DashboardContent() {
                       : "border-border bg-background hover:bg-muted/60 hover:border-amber-600/40 text-foreground"
                   }`}
                 >
-                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400">📦 स्टॉक बदलें</span>
-                  <span className="text-[10px] text-muted-foreground">Adjust stock</span>
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400">📦 Adjust Stock</span>
+                  <span className="text-[10px] text-muted-foreground">Inventory count</span>
                 </button>
               </div>
 
@@ -976,45 +975,45 @@ function DashboardContent() {
                   className="flex flex-col gap-3 p-4 rounded-xl bg-muted/30 border border-border animate-in fade-in duration-150 motion-reduce:animate-none"
                 >
                   <div className="flex flex-col">
-                    <span className="text-xs font-bold text-foreground">नया ग्राहक विवरण</span>
-                    <span className="text-[10px] text-muted-foreground">New customer details</span>
+                    <span className="text-xs font-bold text-foreground">New Customer Details</span>
+                    <span className="text-[10px] text-muted-foreground">Enter customer information</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-muted-foreground">
-                        ग्राहक का नाम (Name) *
+                        Customer Name *
                       </label>
                       <input
                         type="text"
                         required
                         value={newCustName}
                         onChange={(e) => setNewCustName(e.target.value)}
-                        placeholder="उदा: राजेश कुमार"
+                        placeholder="e.g. Ramesh Kumar"
                         className="px-3 py-2 text-xs rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[44px]"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-muted-foreground">
-                        फ़ोन नंबर (Phone)
+                        Phone Number
                       </label>
                       <input
                         type="tel"
                         value={newCustPhone}
                         onChange={(e) => setNewCustPhone(e.target.value)}
-                        placeholder="उदा: 9876543210"
+                        placeholder="e.g. 9876543210"
                         className="px-3 py-2 text-xs rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[44px]"
                       />
                     </div>
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[11px] font-semibold text-muted-foreground">
-                      टिप्पणी / पता (Notes)
+                      Notes / Address
                     </label>
                     <input
                       type="text"
                       value={newCustNotes}
                       onChange={(e) => setNewCustNotes(e.target.value)}
-                      placeholder="उदा: गली नं 3, शर्मा जी के पास"
+                      placeholder="e.g. Near Shiv Temple"
                       className="px-3 py-2 text-xs rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[44px]"
                     />
                   </div>
@@ -1024,14 +1023,14 @@ function DashboardContent() {
                       onClick={() => setActiveQuickAction(null)}
                       className="px-3 py-1.5 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:bg-muted min-h-[38px] cursor-pointer"
                     >
-                      रद्द करें (Cancel)
+                      Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isSubmittingQuickAction}
                       className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5 min-h-[38px] cursor-pointer shadow-xs"
                     >
-                      {isSubmittingQuickAction ? "जोड़ रहा है…" : "ग्राहक जोड़ें (Save)"}
+                      {isSubmittingQuickAction ? "Adding..." : "Add Customer"}
                     </button>
                   </div>
                 </form>
@@ -1044,13 +1043,13 @@ function DashboardContent() {
                   className="flex flex-col gap-3 p-4 rounded-xl bg-muted/30 border border-border animate-in fade-in duration-150 motion-reduce:animate-none"
                 >
                   <div className="flex flex-col">
-                    <span className="text-xs font-bold text-foreground">ग्राहक से भुगतान प्राप्त करें</span>
+                    <span className="text-xs font-bold text-foreground">Record Payment</span>
                     <span className="text-[10px] text-muted-foreground">Record payment against pending balance</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-muted-foreground">
-                        ग्राहक चुनें (Customer) *
+                        Select Customer *
                       </label>
                       <select
                         required
@@ -1058,10 +1057,10 @@ function DashboardContent() {
                         onChange={(e) => setPaymentCustomerId(e.target.value)}
                         className="px-3 py-2 text-xs rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[44px]"
                       >
-                        <option value="">-- ग्राहक चुनें --</option>
+                        <option value="">-- Select Customer --</option>
                         {customers.map((c) => {
                           const debtor = debtors.find((d) => d.customer_id === c.id);
-                          const bal = debtor ? ` (बकाया: ₹${debtor.balance.toLocaleString("en-IN")})` : "";
+                          const bal = debtor ? ` (Udhar: Rs ${debtor.balance.toLocaleString("en-IN")})` : "";
                           return (
                             <option key={c.id} value={c.id}>
                               {c.name}{bal}
@@ -1072,7 +1071,7 @@ function DashboardContent() {
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-muted-foreground">
-                        जमा राशि ₹ (Amount) *
+                        Amount (Rs) *
                       </label>
                       <input
                         type="number"
@@ -1081,7 +1080,7 @@ function DashboardContent() {
                         required
                         value={paymentAmount}
                         onChange={(e) => setPaymentAmount(e.target.value)}
-                        placeholder="₹ राशि लिखें"
+                        placeholder="e.g. 500"
                         className="px-3 py-2 text-xs rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none font-bold tabular-nums min-h-[44px]"
                       />
                     </div>
@@ -1092,14 +1091,14 @@ function DashboardContent() {
                       onClick={() => setActiveQuickAction(null)}
                       className="px-3 py-1.5 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:bg-muted min-h-[38px] cursor-pointer"
                     >
-                      रद्द करें (Cancel)
+                      Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isSubmittingQuickAction}
                       className="px-4 py-1.5 rounded-lg bg-green-700 text-white text-xs font-bold hover:bg-green-800 disabled:opacity-50 flex items-center gap-1.5 min-h-[38px] cursor-pointer shadow-xs"
                     >
-                      {isSubmittingQuickAction ? "दर्ज हो रहा…" : "भुगतान दर्ज करें (Confirm)"}
+                      {isSubmittingQuickAction ? "Recording..." : "Record Payment"}
                     </button>
                   </div>
                 </form>
@@ -1112,13 +1111,13 @@ function DashboardContent() {
                   className="flex flex-col gap-3 p-4 rounded-xl bg-muted/30 border border-border animate-in fade-in duration-150 motion-reduce:animate-none"
                 >
                   <div className="flex flex-col">
-                    <span className="text-xs font-bold text-foreground">स्टॉक मात्रा बदलें</span>
-                    <span className="text-[10px] text-muted-foreground">Adjust product inventory</span>
+                    <span className="text-xs font-bold text-foreground">Adjust Product Stock</span>
+                    <span className="text-[10px] text-muted-foreground">Update product inventory quantity</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-muted-foreground">
-                        सामान चुनें (Product) *
+                        Select Product *
                       </label>
                       <select
                         required
@@ -1126,17 +1125,17 @@ function DashboardContent() {
                         onChange={(e) => setStockProductId(e.target.value)}
                         className="px-3 py-2 text-xs rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[44px]"
                       >
-                        <option value="">-- सामान चुनें --</option>
+                        <option value="">-- Select Product --</option>
                         {allProducts.map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.name} (स्टॉक: {p.stock_qty} {p.unit})
+                            {p.name} (Stock: {p.stock_qty} {p.unit})
                           </option>
                         ))}
                       </select>
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-muted-foreground">
-                        मात्रा परिवर्तन (+ या -) *
+                        Quantity Change (+ or -) *
                       </label>
                       <input
                         type="number"
@@ -1144,7 +1143,7 @@ function DashboardContent() {
                         required
                         value={stockQtyChange}
                         onChange={(e) => setStockQtyChange(e.target.value)}
-                        placeholder="उदा: +10 या -5"
+                        placeholder="e.g. +10 or -5"
                         className="px-3 py-2 text-xs rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none font-bold tabular-nums min-h-[44px]"
                       />
                     </div>
@@ -1155,14 +1154,14 @@ function DashboardContent() {
                       onClick={() => setActiveQuickAction(null)}
                       className="px-3 py-1.5 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:bg-muted min-h-[38px] cursor-pointer"
                     >
-                      रद्द करें (Cancel)
+                      Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isSubmittingQuickAction}
                       className="px-4 py-1.5 rounded-lg bg-amber-700 text-white text-xs font-bold hover:bg-amber-800 disabled:opacity-50 flex items-center gap-1.5 min-h-[38px] cursor-pointer shadow-xs"
                     >
-                      {isSubmittingQuickAction ? "अपडेट हो रहा…" : "स्टॉक बदलें (Confirm)"}
+                      {isSubmittingQuickAction ? "Updating..." : "Update Stock"}
                     </button>
                   </div>
                 </form>
@@ -1174,7 +1173,7 @@ function DashboardContent() {
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
                   <h2 className="text-base font-bold text-foreground leading-tight">
-                    हालिया लेन-देन
+                    Recent Transactions
                   </h2>
                   <span className="text-[11px] text-muted-foreground leading-tight">
                     Recent entries (last 5)
@@ -1184,7 +1183,7 @@ function DashboardContent() {
                   href="/app/ledger"
                   className="text-xs font-semibold text-primary hover:underline whitespace-nowrap min-h-[32px] flex items-center"
                 >
-                  पूरा खाता (View All) →
+                  View All →
                 </Link>
               </div>
 
@@ -1196,9 +1195,9 @@ function DashboardContent() {
                 </div>
               ) : recentEntries.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground bg-card/40 flex flex-col items-center gap-1">
-                  <div>🎉 अभी कोई हालिया लेन-देन नहीं है (No recent transactions recorded yet).</div>
+                  <div>🎉 No recent transactions recorded yet.</div>
                   <div className="text-[11px] font-medium text-primary mt-0.5">
-                    अपनी पहली बिक्री बोलकर शुरू करें (Say your first sale to get started)!
+                    Say your first sale to get started!
                   </div>
                   <div className="text-[10px] opacity-75 mt-0.5">
                     Speak or type an entry above to record your first transaction!
@@ -1219,7 +1218,7 @@ function DashboardContent() {
                         <div className="flex flex-col min-w-0 pr-2">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-foreground text-sm truncate">
-                              {tx.customer_name || "सीधा नकद ग्राहक"}
+                              {tx.customer_name || "Walk-in Cash Customer"}
                             </span>
                             <span
                               className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
@@ -1231,10 +1230,10 @@ function DashboardContent() {
                               }`}
                             >
                               {isPayment
-                                ? "भुगतान"
+                                ? "Payment"
                                 : isCreditSale
-                                ? "उधार बिक्री"
-                                : "नकद बिक्री"}
+                                ? "Udhar Sale"
+                                : "Cash Sale"}
                             </span>
                           </div>
                           <span className="text-[10px] text-muted-foreground mt-0.5">
@@ -1251,10 +1250,10 @@ function DashboardContent() {
                           ) : isCreditSale ? (
                             <>
                               <span className="text-sm font-extrabold text-amber-700 dark:text-amber-400 tabular-nums">
-                                ₹{udharAmt.toLocaleString("en-IN")} उधार
+                                ₹{udharAmt.toLocaleString("en-IN")} udhar
                               </span>
                               <span className="text-[10px] text-muted-foreground tabular-nums">
-                                कुल ₹{tx.total_amount.toLocaleString("en-IN")}
+                                Total ₹{tx.total_amount.toLocaleString("en-IN")}
                               </span>
                             </>
                           ) : (
@@ -1295,10 +1294,10 @@ function DashboardContent() {
             <div className="flex flex-col justify-between items-center text-center gap-2 rounded-2xl bg-card border border-border/80 p-4 shadow-xs h-full min-h-[110px]">
               <div className="flex flex-col items-center">
                 <span className="text-xs font-bold text-foreground leading-tight">
-                  आज की बिक्री
+                  Today&apos;s Sales
                 </span>
                 <span className="text-[10px] text-muted-foreground leading-tight">
-                  Today&apos;s Sales
+                  Cash &amp; Credit
                 </span>
               </div>
               {isLoadingDashboard ? (
@@ -1314,10 +1313,10 @@ function DashboardContent() {
             <div className="flex flex-col justify-between items-center text-center gap-2 rounded-2xl bg-card border border-border/80 p-4 shadow-xs h-full min-h-[110px]">
               <div className="flex flex-col items-center">
                 <span className="text-xs font-bold text-amber-700 dark:text-amber-400 leading-tight">
-                  कुल उधार
+                  Total Pending Udhar
                 </span>
                 <span className="text-[10px] text-muted-foreground leading-tight">
-                  Total Pending Udhar
+                  Customer Balance
                 </span>
               </div>
               {isLoadingDashboard ? (
@@ -1331,7 +1330,7 @@ function DashboardContent() {
             </div>
           </section>
 
-          {/* Top 5 Debtors (बड़े बकायेदार) — Title stays on one line at 1280px, count in badge, proper empty state ("No udhar yet") */}
+          {/* Top 5 Debtors — Title stays on one line at 1280px, count in badge, proper empty state ("No udhar yet") */}
           <section
             aria-label="Top debtors"
             className="order-4 lg:order-none flex flex-col gap-3 w-full"
@@ -1340,10 +1339,10 @@ function DashboardContent() {
               <div className="flex items-center gap-2 min-w-0">
                 <div className="flex flex-col min-w-0">
                   <h2 className="text-base font-bold text-foreground leading-tight whitespace-nowrap">
-                    शीर्ष बकायेदार
+                    Top Debtors
                   </h2>
                   <span className="text-[11px] text-muted-foreground leading-tight">
-                    Top Debtors
+                    Customers with balance
                   </span>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0">
@@ -1354,7 +1353,7 @@ function DashboardContent() {
                 href="/app/ledger"
                 className="text-xs font-semibold text-primary hover:underline whitespace-nowrap shrink-0 min-h-[36px] flex items-center"
               >
-                पूरा खाता (View All) →
+                View All →
               </Link>
             </div>
 
@@ -1369,10 +1368,10 @@ function DashboardContent() {
                 {customers.length === 0 ? (
                   <>
                     <span className="font-semibold text-foreground">
-                      दुकान में अभी कोई ग्राहक या बकाया नहीं है
+                      No customers or pending udhar in store yet
                     </span>
                     <span className="text-[11px] text-muted-foreground">
-                      अपनी पहली बिक्री बोलकर शुरू करें (Say your first sale to get started).
+                      Say your first sale to get started.
                     </span>
                     <button
                       type="button"
@@ -1380,12 +1379,12 @@ function DashboardContent() {
                       disabled={isLoadingSample}
                       className="text-xs font-bold text-primary underline cursor-pointer mt-1"
                     >
-                      नमूना डेटा लोड करें / Load sample data
+                      Load sample data
                     </button>
                   </>
                 ) : (
                   <>
-                    <div>🎉 कोई बकाया नहीं है (No udhar yet). सभी खाते चुकता हैं!</div>
+                    <div>🎉 No pending udhar. All customer accounts are settled!</div>
                     <div className="text-[10px] opacity-75 mt-0.5">All customer accounts are settled.</div>
                   </>
                 )}
@@ -1437,7 +1436,7 @@ function DashboardContent() {
             )}
           </section>
 
-          {/* Low-Stock Alerts (कम स्टॉक चेतावनी) — Title stays on one line at 1280px, count in badge, clean empty state */}
+          {/* Low-Stock Alerts — Title stays on one line at 1280px, count in badge, clean empty state */}
           <section
             aria-label="Low stock items"
             className="order-5 lg:order-none flex flex-col gap-3 w-full"
@@ -1446,10 +1445,10 @@ function DashboardContent() {
               <div className="flex items-center gap-2 min-w-0">
                 <div className="flex flex-col min-w-0">
                   <h2 className="text-base font-bold text-foreground leading-tight whitespace-nowrap">
-                    कम स्टॉक चेतावनी
+                    Low Stock Alerts
                   </h2>
                   <span className="text-[11px] text-muted-foreground leading-tight">
-                    Low Stock Alerts
+                    Needs reordering
                   </span>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-destructive/10 text-destructive border border-destructive/20 shrink-0">
@@ -1469,10 +1468,10 @@ function DashboardContent() {
                 {allProducts.length === 0 ? (
                   <>
                     <span className="font-semibold text-foreground">
-                      दुकान में अभी कोई सामान दर्ज नहीं है
+                      No inventory items recorded yet
                     </span>
                     <span className="text-[11px] text-muted-foreground">
-                      अपनी पहली बिक्री बोलकर शुरू करें (Say your first sale to get started).
+                      Say your first sale to get started.
                     </span>
                     <button
                       type="button"
@@ -1480,12 +1479,12 @@ function DashboardContent() {
                       disabled={isLoadingSample}
                       className="text-xs font-bold text-primary underline cursor-pointer mt-0.5"
                     >
-                      नमूना डेटा लोड करें / Load sample data
+                      Load sample data
                     </button>
                   </>
                 ) : (
                   <>
-                    <div>✓ सभी सामान पर्याप्त हैं (All items in stock).</div>
+                    <div>✓ All items in stock. Healthy inventory levels.</div>
                     <div className="text-[10px] opacity-75 mt-0.5">All products have healthy inventory levels.</div>
                   </>
                 )}
@@ -1500,14 +1499,14 @@ function DashboardContent() {
                     <div className="flex flex-col min-w-0 pr-2">
                       <span className="font-bold text-foreground text-sm truncate">{item.name}</span>
                       <span className="text-[11px] text-muted-foreground">
-                        री-ऑर्डर स्तर: {item.reorder_level} {item.unit}
+                        Reorder level: {item.reorder_level} {item.unit}
                       </span>
                     </div>
                     <div className="flex flex-col items-end shrink-0">
                       <span className="font-extrabold text-destructive text-sm tabular-nums">
                         {item.stock_qty} {item.unit}
                       </span>
-                      <span className="text-[10px] text-destructive/80 font-medium">स्टॉक कम है</span>
+                      <span className="text-[10px] text-destructive/80 font-medium">Low Stock</span>
                     </div>
                   </div>
                 ))}
@@ -1524,7 +1523,7 @@ function DashboardContent() {
                 onClick={() => loadDashboardData(true)}
                 className="underline font-bold text-xs hover:text-destructive/80 cursor-pointer min-h-[36px] flex items-center"
               >
-                पुनः प्रयास करें (Retry)
+                Retry
               </button>
             </div>
           )}

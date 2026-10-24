@@ -103,10 +103,10 @@ export function buildConfirmPayload(input: ConfirmPayloadInput): Record<string, 
 }
 
 /**
- * Formats API errors from server endpoints into friendly, actionable Hindi/English messages.
+ * Formats API errors from server endpoints into friendly, actionable English messages.
  */
 export function formatApiError(err: unknown): string {
-  if (!err) return "अज्ञात त्रुटि हुई (Unknown error occurred).";
+  if (!err) return "Unknown error occurred.";
 
   if (typeof err === "string") {
     return cleanErrorMessage(err);
@@ -121,7 +121,7 @@ export function formatApiError(err: unknown): string {
     if (typeof errorProp === "string") return cleanErrorMessage(errorProp);
   }
 
-  return "सर्वर त्रुटि (Server error). कृपया पुनः प्रयास करें।";
+  return "Server error. Please try again.";
 }
 
 function cleanErrorMessage(msg: string): string {
@@ -136,19 +136,19 @@ function cleanErrorMessage(msg: string): string {
   }
 
   if (m.includes("demo limit reached") || m.includes("daily_limit_exceeded")) {
-    return "डेमो सीमा समाप्त: आज की दैनिक सीमा पूरी हो चुकी है। कल पुनः प्रयास करें। (Demo limit reached, please try again tomorrow).";
+    return "Demo limit reached: Daily limit has been reached. Please try again tomorrow.";
   }
 
   if (m.includes("rate limit") || m.includes("too many requests")) {
-    return "बहुत अधिक अनुरोध: कृपया कुछ सेकंड प्रतीक्षा करें। (Rate limit reached. Please wait a moment).";
+    return "Too many requests: Please wait a moment.";
   }
 
   if (m.includes("abort") || m.includes("timeout")) {
-    return "अनुरोध समय समाप्त (30s timeout). सर्वर से उत्तर नहीं मिला।";
+    return "Request timeout (30s). The server did not respond.";
   }
 
   if (m.includes("fetch") || m.includes("network") || m.includes("failed to fetch")) {
-    return "इंटरनेट/नेटवर्क कनेक्शन त्रुटि (Network connection error).";
+    return "Network connection error.";
   }
 
   return msg;

@@ -106,8 +106,8 @@ function LoginForm() {
       setIsGoogleLoading(false);
       const msg = err instanceof Error ? err.message : "Network error";
       setLocalError({
-        title: "कनेक्शन त्रुटि (Connection Error)",
-        message: `लॉगिन सेवा से संपर्क नहीं हो सका: ${msg}`,
+        title: "Connection Error",
+        message: `Could not reach authentication service: ${msg}`,
       });
     }
   };
@@ -124,10 +124,10 @@ function LoginForm() {
 
         if (!res.ok) {
           setLocalError({
-            title: "डेमो त्रुटि (Demo Unavailable)",
+            title: "Demo Unavailable",
             message:
               data.error ||
-              "डेमो खाता इस समय अनुपलब्ध है। कृपया कुछ देर बाद पुनः प्रयास करें।",
+              "Demo account is temporarily unavailable. Please try again shortly.",
           });
         } else {
           router.push(safeNext);
@@ -136,8 +136,8 @@ function LoginForm() {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Network error";
         setLocalError({
-          title: "कनेक्शन त्रुटि (Connection Error)",
-          message: `डेमो लॉगिन विफल रहा: ${msg}`,
+          title: "Connection Error",
+          message: `Demo sign-in failed: ${msg}`,
         });
       }
     });
@@ -154,7 +154,7 @@ function LoginForm() {
         >
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-amber-500 p-0.5 shadow-lg shadow-violet-900/50 group-hover:scale-105 transition-transform">
             <div className="w-full h-full bg-[#0b091a] rounded-[14px] flex items-center justify-center text-2xl font-black text-white">
-              द
+              D
             </div>
           </div>
           <span className="text-2xl font-black tracking-tight text-white">
@@ -163,10 +163,10 @@ function LoginForm() {
         </Link>
 
         <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-          दुकान में लॉगिन करें
+          Sign in to your shop
         </h1>
         <p className="text-sm text-white/70 mt-1.5 max-w-xs">
-          अपनी दुकान से बात करें। DukaanAI रखेगा पूरा हिसाब।
+          Talk to your shop. DukaanAI keeps the books.
         </p>
       </div>
 
@@ -230,17 +230,17 @@ function LoginForm() {
                     d="M4 12a8 8 0 018-8v8H4z"
                   />
                 </svg>
-                <span>Google से जुड़ रहे हैं... (Connecting...)</span>
+                <span>Connecting to Google...</span>
               </>
             ) : (
               <>
                 <GoogleIcon />
-                <span>Continue with Google / Google से जारी रखें</span>
+                <span>Continue with Google</span>
               </>
             )}
           </button>
           <span className="text-[11px] text-center text-white/50">
-            सुरक्षित एवं त्वरित • पासवर्ड की आवश्यकता नहीं
+            Fast, secure • No password needed
           </span>
         </div>
 
@@ -248,7 +248,7 @@ function LoginForm() {
         <div className="relative flex items-center justify-center my-1">
           <div className="w-full border-t border-white/10" />
           <span className="absolute bg-[#0b091a] px-3 text-xs text-white/50 uppercase tracking-widest font-semibold">
-            या (or)
+            or
           </span>
         </div>
 
@@ -282,7 +282,7 @@ function LoginForm() {
                     d="M4 12a8 8 0 018-8v8H4z"
                   />
                 </svg>
-                <span>डेमो खाता शुरू हो रहा है...</span>
+                <span>Starting demo...</span>
               </>
             ) : (
               <>
@@ -292,7 +292,7 @@ function LoginForm() {
                 >
                   ✨
                 </span>
-                <span>डेमो आज़माएँ (बिना साइनअप) / Try Demo</span>
+                <span>Try Demo (No signup required)</span>
                 <span
                   aria-hidden="true"
                   className="text-white/60 group-hover:translate-x-0.5 transition-transform"
@@ -303,7 +303,7 @@ function LoginForm() {
             )}
           </button>
           <span className="text-[11px] text-center text-white/50">
-            हैकथॉन जजों के लिए तैयार नमूना डेटा के साथ सीधा प्रवेश
+            Instant access with sample data for hackathon judges
           </span>
         </div>
 
@@ -311,10 +311,10 @@ function LoginForm() {
         <div className="pt-2 border-t border-white/10 flex flex-col gap-1 text-[11px] text-white/60 text-center">
           <div className="flex items-center justify-center gap-1.5 text-emerald-400 font-medium">
             <span>🔒</span>
-            <span>100% सुरक्षित • RLS डेटा सुरक्षा</span>
+            <span>Private & Secure • Row-Level Security</span>
           </div>
           <p>
-            कोई ईमेल/पासवर्ड या अन्य सोशल लॉगिन नहीं। केवल आधिकारिक Google साइन-इन या डेमो।
+            Each shop&apos;s data is private to its owner (Row-Level Security).
           </p>
         </div>
       </div>
@@ -326,7 +326,7 @@ function LoginForm() {
           id="link-back-home"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/60 hover:text-white transition-colors min-h-[44px] px-3 py-2 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
         >
-          <span>← वापस मुख्य पृष्ठ (Home)</span>
+          <span>← Back to Home</span>
         </Link>
       </div>
     </div>

@@ -4,45 +4,42 @@ export function WorkflowSteps() {
   const steps = [
     {
       number: "01",
-      badge: "कदम 1: सिर्फ बोलिए (Talk)",
-      title: "अपनी देसी भाषा में बोलें",
-      englishTitle: "Speak Naturally in Hinglish",
+      badge: "Step 1: Talk",
+      title: "Speak Naturally in Hinglish",
       description:
-        "काउंटर पर खड़े होकर बस माइक दबाएं और सामान्य बोलचाल में बोलें। कोई टाइपिंग या फॉर्म भरने की जरूरत नहीं।",
+        "Simply press the mic button at the counter and speak naturally. No typing or complex form filling required.",
       exampleBox: {
-        speaker: "दुकानदार बोला:",
-        quote: "“रमेश ने 500 का सामान लिया, 200 नकद दिए बाकी उधार।”",
-        tag: "🎙️ Web Speech API (hi-IN)",
+        speaker: "Shopkeeper says:",
+        quote: "“Ramesh ne 500 ka saaman liya, 200 abhi diye baaki udhar.”",
+        tag: "🎙️ Web Speech API (en-IN)",
       },
       gradient: "from-violet-500/10 to-indigo-500/10 border-violet-500/20",
       accent: "text-violet-400 bg-violet-500/10 border-violet-500/30",
     },
     {
       number: "02",
-      badge: "कदम 2: जांचें और पुष्टि करें (Confirm)",
-      title: "AI समझदारी से हिसाब बनाएगा",
-      englishTitle: "Review AI-Parsed Breakdown",
+      badge: "Step 2: Confirm",
+      title: "Review AI-Parsed Breakdown",
       description:
-        "AI ग्राहक का नाम, सामान और उधारी अलग करेगा। 98% विश्वास स्कोर के साथ स्क्रीन पर साफ़ कार्ड दिखेगा।",
+        "AI extracts customer name, items, cash paid, and pending credit. Shows a clear confirmation card for your one-tap review.",
       exampleBox: {
-        speaker: "DukaanAI पुष्टि कार्ड:",
-        quote: "रमेश कुमार · कुल ₹500 · नकद ₹200 · उधार ₹300",
-        tag: "✓ सही ग्राहक पहचान (Fuzzy Match)",
+        speaker: "DukaanAI Confirmation Card:",
+        quote: "Ramesh Kumar · Total ₹500 · Cash ₹200 · Udhar ₹300",
+        tag: "✓ Cultural Name Matching",
       },
       gradient: "from-amber-500/10 to-orange-500/10 border-amber-500/20",
       accent: "text-amber-400 bg-amber-500/10 border-amber-500/30",
     },
     {
       number: "03",
-      badge: "कदम 3: खाता और व्हाट्सएप (Ledger & WhatsApp)",
-      title: "खाते में दर्ज और 1-क्लिक तगादा",
-      englishTitle: "Atomic Ledger & WhatsApp Link",
+      badge: "Step 3: Ledger & WhatsApp",
+      title: "Atomic Ledger & WhatsApp Reminder",
       description:
-        "पुष्टि करते ही बहीखाते में दर्ज, स्टॉक अपडेट, और ग्राहक को व्हाट्सएप पर सभ्य हिंदी संदेश भेजने का सीधा लिंक।",
+        "One tap saves the sale, adjusts stock, updates customer credit, and prepares a polite WhatsApp reminder ready to send.",
       exampleBox: {
-        speaker: "व्हाट्सएप संदेश तैयार:",
-        quote: "“नमस्ते रमेश जी! आपकी शर्मा किराना पर ₹300 की उधारी है...”",
-        tag: "💬 1-Tap wa.me लिंक",
+        speaker: "WhatsApp Reminder Ready:",
+        quote: "“Namaste Ramesh ji, aapka Rs 300 udhar baaki hai. Please jaldi bhej dijiye. - Sharma Kirana Store”",
+        tag: "💬 1-Tap wa.me Link",
       },
       gradient: "from-emerald-500/10 to-teal-500/10 border-emerald-500/20",
       accent: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
@@ -58,16 +55,16 @@ export function WorkflowSteps() {
         {/* Section Header with clamp() fluid scaling */}
         <div data-reveal-header className="flex flex-col items-center text-center gap-3 max-w-2xl mx-auto mb-14 sm:mb-16">
           <span className="text-xs font-bold tracking-wider uppercase text-violet-400 bg-violet-500/10 border border-violet-500/30 px-3.5 py-1 rounded-full">
-            सरल 3 चरण (How It Works)
+            How It Works
           </span>
           <h2 className="text-[clamp(1.65rem,3.2vw+0.6rem,2.75rem)] font-black text-white tracking-tight">
-            बोलने से बहीखाते तक —{" "}
+            From Spoken Words to Ledger —{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-indigo-300 to-amber-300">
-              सिर्फ 3 कदम
+              Just 3 Simple Steps
             </span>
           </h2>
           <p className="text-[clamp(0.95rem,1vw+0.65rem,1.125rem)] text-white/70">
-            DukaanAI आपके कहे शब्दों को तुरंत हिसाब, स्टॉक और भुगतान रिमाइंडर में बदल देता है:
+            DukaanAI turns everyday speech into ledger entries, stock updates, and polite payment reminders:
           </p>
         </div>
 
@@ -95,9 +92,6 @@ export function WorkflowSteps() {
                   <h3 className="text-xl sm:text-2xl font-bold text-white">
                     {step.title}
                   </h3>
-                  <span className="text-xs text-white/50 font-medium">
-                    {step.englishTitle}
-                  </span>
                 </div>
 
                 <p className="text-sm text-white/70 leading-relaxed">

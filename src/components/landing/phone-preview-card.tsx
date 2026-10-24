@@ -10,16 +10,16 @@ export function PhonePreviewCard() {
         {/* Section Header with clamp() fluid scaling */}
         <div data-reveal-header className="flex flex-col items-center text-center gap-3 max-w-2xl mx-auto mb-14 sm:mb-16">
           <span className="text-xs font-bold tracking-wider uppercase text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3.5 py-1 rounded-full">
-            लाइव इंटरफ़ेस (Live Preview)
+            Live Preview
           </span>
           <h2 className="text-[clamp(1.65rem,3.2vw+0.6rem,2.75rem)] font-black text-white tracking-tight">
-            स्क्रीन पर दिखता है{" "}
+            Clear Confirmation{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-indigo-300 to-amber-300">
-              पुष्टि कार्ड
+              Before Anything Saves
             </span>
           </h2>
           <p className="text-[clamp(0.95rem,1vw+0.65rem,1.125rem)] text-white/70">
-            DukaanAI का असली कन्फर्मेशन कार्ड — कोई छिपा हुआ नियम नहीं, आपके द्वारा पुष्टि करने के बाद ही हिसाब दर्ज होता है:
+            DukaanAI&apos;s real confirmation card — zero surprises, every transaction requires your explicit review:
           </p>
         </div>
 
@@ -28,15 +28,15 @@ export function PhonePreviewCard() {
           {/* Left Callouts (Desktop) */}
           <div className="hidden lg:flex lg:col-span-3 flex-col gap-6 text-right">
             <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-md flex flex-col gap-1">
-              <span className="text-xs font-bold text-amber-300">✓ ग्राहक की सही पहचान</span>
+              <span className="text-xs font-bold text-amber-300">✓ Cultural Name Matching</span>
               <p className="text-xs text-white/70">
-                रमेश, रमेश जी, रमेश भाई — उपनाम और इतिहास के आधार पर सही खाता खोजता है।
+                Ramesh, Ramesh ji, Ramesh bhai — intelligently resolves surnames and customer history without duplicate entries.
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-md flex flex-col gap-1">
-              <span className="text-xs font-bold text-violet-300">⚡ 98% AI कॉन्फिडेंस</span>
+              <span className="text-xs font-bold text-violet-300">⚡ 98% AI Confidence</span>
               <p className="text-xs text-white/70">
-                यदि AI को कम विश्वास हो (&lt;70%), तो वह तुरंत पीले रंग की चेतावनी दिखाता है।
+                If the model confidence is low (&lt;70%), it clearly shows an amber warning badge asking you to verify.
               </p>
             </div>
           </div>
@@ -61,11 +61,11 @@ export function PhonePreviewCard() {
               {/* Kirana Store Header inside phone */}
               <div className="rounded-xl bg-white/[0.04] border border-white/10 p-2.5 mb-3 flex items-center justify-between">
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white">शर्मा किराना स्टोर</span>
+                  <span className="text-xs font-bold text-white">Sharma Kirana Store</span>
                   <span className="text-[10px] text-white/50">GSTIN: 07AAAAA0000A1Z5</span>
                 </div>
                 <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  सक्रिय (Online)
+                  Active
                 </span>
               </div>
 
@@ -78,46 +78,46 @@ export function PhonePreviewCard() {
                       🛒
                     </span>
                     <div>
-                      <h4 className="text-xs font-bold text-white">सामान बिक्री (Sale)</h4>
-                      <p className="text-[10px] text-white/50">कृपया विवरण जांचें</p>
+                      <h4 className="text-xs font-bold text-white">Record Sale</h4>
+                      <p className="text-[10px] text-white/50">Please review details</p>
                     </div>
                   </div>
                   <span className="text-[10px] font-bold text-violet-300 bg-violet-500/15 border border-violet-500/30 px-2 py-0.5 rounded-full">
-                    98% विश्वास
+                    98% Confidence
                   </span>
                 </div>
 
                 {/* Customer Matching Status */}
                 <div className="rounded-xl bg-white/[0.03] border border-white/10 p-2.5 flex items-center justify-between">
                   <div className="flex flex-col">
-                    <span className="text-xs font-bold text-white">रमेश कुमार</span>
+                    <span className="text-xs font-bold text-white">Ramesh Kumar</span>
                     <span className="text-[10px] text-white/50">📞 +91 98765 43210</span>
                   </div>
                   <span className="text-[10px] font-semibold text-emerald-400">
-                    ✓ सही पहचान (Matched)
+                    ✓ Matched
                   </span>
                 </div>
 
                 {/* Financial 3-column breakdown */}
                 <div className="grid grid-cols-3 gap-1.5 text-center">
                   <div className="rounded-xl bg-white/[0.04] p-2 flex flex-col">
-                    <span className="text-[10px] text-white/50">कुल (Total)</span>
+                    <span className="text-[10px] text-white/50">Total</span>
                     <span className="text-sm font-extrabold text-white">₹500</span>
                   </div>
                   <div className="rounded-xl bg-white/[0.04] p-2 flex flex-col">
-                    <span className="text-[10px] text-emerald-400">नकद (Paid)</span>
+                    <span className="text-[10px] text-emerald-400">Paid</span>
                     <span className="text-sm font-extrabold text-emerald-400">₹200</span>
                   </div>
                   <div className="rounded-xl bg-amber-500/15 border border-amber-500/30 p-2 flex flex-col">
-                    <span className="text-[10px] text-amber-300 font-semibold">उधार (Udhar)</span>
+                    <span className="text-[10px] text-amber-300 font-semibold">Udhar Due</span>
                     <span className="text-sm font-black text-amber-300">₹300</span>
                   </div>
                 </div>
 
-                {/* Hinglish Plain-Language Summary */}
+                {/* Plain-Language Summary */}
                 <div className="rounded-xl bg-white/[0.03] p-2 text-[11px] text-white/80 leading-snug border border-white/5">
-                  <span className="font-semibold text-white">सारांश: </span>
-                  रमेश: ₹500 का सामान, ₹200 नकद दिए, ₹300 उधार।
+                  <span className="font-semibold text-white">Summary: </span>
+                  Ramesh Kumar: Sale of Rs 500, Rs 200 cash, Rs 300 udhar.
                 </div>
 
                 {/* Real Action Buttons (min-height >= 48px) */}
@@ -126,20 +126,20 @@ export function PhonePreviewCard() {
                     type="button"
                     className="w-full min-h-[48px] rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs shadow-lg shadow-violet-900/40 flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
                   >
-                    <span>✓ पुष्टि करें (Confirm)</span>
+                    <span>✓ Confirm</span>
                   </button>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       className="min-h-[48px] rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-white/80 font-semibold text-[11px] border border-white/10 flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
                     >
-                      बदलें (Edit)
+                      Edit
                     </button>
                     <button
                       type="button"
                       className="min-h-[48px] rounded-xl bg-white/[0.02] hover:bg-rose-500/10 text-white/50 hover:text-rose-400 font-semibold text-[11px] flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
                     >
-                      रद्द करें (Cancel)
+                      Cancel
                     </button>
                   </div>
                 </div>
@@ -155,15 +155,15 @@ export function PhonePreviewCard() {
           {/* Right Callouts (Desktop) */}
           <div className="hidden lg:flex lg:col-span-3 flex-col gap-6 text-left">
             <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-md flex flex-col gap-1">
-              <span className="text-xs font-bold text-emerald-300">🔒 ज़ीरो-सरप्राइज सेफ्टी</span>
+              <span className="text-xs font-bold text-emerald-300">🔒 Zero-Surprise Safety</span>
               <p className="text-xs text-white/70">
-                जब तक दुकानदार &apos;पुष्टि करें&apos; नहीं दबाता, डेटाबेस में एक भी रुपया दर्ज नहीं होता।
+                Nothing is committed to the database until the shop owner taps Confirm.
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-md flex flex-col gap-1">
-              <span className="text-xs font-bold text-amber-300">📱 48px+ बड़े बटन</span>
+              <span className="text-xs font-bold text-amber-300">📱 48px+ Tap Targets</span>
               <p className="text-xs text-white/70">
-                आटे या तेल लगे हाथों से भी काउंटर पर आसानी से टैप करने के लिए विशेष डिज़ाइन।
+                Engineered for busy shop counters with large touch targets that are easy to tap.
               </p>
             </div>
           </div>

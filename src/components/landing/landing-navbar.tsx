@@ -15,7 +15,7 @@ export function LandingNavbar() {
         >
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-amber-500 p-0.5 shadow-md shadow-violet-900/40 group-hover:shadow-violet-600/50 transition-shadow">
             <div className="w-full h-full bg-[#0b091a] rounded-[10px] flex items-center justify-center text-lg sm:text-xl font-black text-white">
-              द
+              D
             </div>
           </div>
           <div className="flex flex-col">
@@ -39,25 +39,25 @@ export function LandingNavbar() {
             href="#problem"
             className="hover:text-white transition-colors cursor-pointer py-3 px-2.5 inline-flex items-center min-h-[48px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
           >
-            समस्या (Problem)
+            The Problem
           </a>
           <a
             href="#workflow"
             className="hover:text-white transition-colors cursor-pointer py-3 px-2.5 inline-flex items-center min-h-[48px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
           >
-            कैसे काम करता है (How it works)
+            How it Works
           </a>
           <a
             href="#preview"
             className="hover:text-white transition-colors cursor-pointer py-3 px-2.5 inline-flex items-center min-h-[48px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
           >
-            लाइव प्रिव्यू (Preview)
+            Live Preview
           </a>
           <a
             href="#features"
             className="hover:text-white transition-colors cursor-pointer py-3 px-2.5 inline-flex items-center min-h-[48px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
           >
-            सुविधाएं (Features)
+            Features
           </a>
         </nav>
 

@@ -52,7 +52,7 @@ export default function LedgerPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setErrorMsg("लॉगिन आवश्यक है (Sign in required).");
+        setErrorMsg("Sign in required.");
         setIsLoading(false);
         return;
       }
@@ -73,8 +73,8 @@ export default function LedgerPage() {
           .from("shops")
           .insert({
             owner_id: user.id,
-            name: "मेरी दुकान / My Dukaan",
-            language: "hi",
+            name: "My Dukaan",
+            language: "en",
           })
           .select("id, name")
           .single();
@@ -85,7 +85,7 @@ export default function LedgerPage() {
       }
 
       if (!shop) {
-        setErrorMsg("दुकान नहीं मिली (Shop profile not found).");
+        setErrorMsg("Shop profile not found.");
         setIsLoading(false);
         return;
       }
@@ -115,7 +115,7 @@ export default function LedgerPage() {
       }
     } catch (err: unknown) {
       console.error("Ledger load error:", err);
-      setErrorMsg("खाता सूची लोड करने में विफल (Failed to load ledger).");
+      setErrorMsg("Failed to load ledger.");
     } finally {
       setIsLoading(false);
     }
@@ -143,15 +143,15 @@ export default function LedgerPage() {
       const supabase = createClient();
       const { error } = await supabase.rpc("load_sample_data");
       if (error) {
-        setErrorMsg(`नमूना डेटा लोड त्रुटि: ${error.message}`);
+        setErrorMsg(`Sample data error: ${error.message}`);
       } else {
-        setCustSuccessMsg("नमूना ग्राहक व उत्पाद लोड हो गए!");
+        setCustSuccessMsg("Sample customers & inventory loaded successfully!");
         await loadLedger(true);
         setTimeout(() => setCustSuccessMsg(null), 5000);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Network error";
-      setErrorMsg(`त्रुटि: ${msg}`);
+      setErrorMsg(`Error: ${msg}`);
     } finally {
       setIsLoadingSample(false);
     }
@@ -162,12 +162,12 @@ export default function LedgerPage() {
     e.preventDefault();
     const name = newCustName.trim();
     if (!name) {
-      setCustFormError("कृपया ग्राहक का नाम लिखें (Customer name required).");
+      setCustFormError("Customer name required.");
       return;
     }
     const phone = newCustPhone.trim() || null;
     if (phone && !/^\+?[0-9\s-]{8,15}$/.test(phone)) {
-      setCustFormError("कृपया सही 10-अंकीय फ़ोन नंबर दर्ज करें (Invalid phone number).");
+      setCustFormError("Please enter a valid phone number.");
       return;
     }
 
@@ -185,15 +185,15 @@ export default function LedgerPage() {
           phone,
           notes: newCustNotes.trim() || null,
           idempotency_key: generateIdempotencyKey(),
-          summary: `नया ग्राहक "${name}" खाता बही में जोड़ा गया`,
+          summary: `New customer "${name}" added to ledger`,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        setCustFormError(formatApiError(data.error || "ग्राहक जोड़ने में विफल (Failed to add customer)."));
+        setCustFormError(formatApiError(data.error || "Failed to add customer."));
       } else {
-        setCustSuccessMsg(`✓ ग्राहक "${name}" खाता बही में जुड़ गया! (Customer added)`);
+        setCustSuccessMsg(`✓ Customer "${name}" added to ledger!`);
         setNewCustName("");
         setNewCustPhone("");
         setNewCustNotes("");
@@ -248,10 +248,10 @@ export default function LedgerPage() {
           <div className="flex items-center justify-between gap-2">
             <div className="flex flex-col">
               <h1 className="text-xl font-extrabold tracking-tight text-foreground leading-tight">
-                खाता बही
+                Customer Ledger
               </h1>
               <span className="text-xs text-muted-foreground leading-tight">
-                Customer Ledger • ग्राहकों का बकाया व वसूली
+                Customer credit and payment tracking
               </span>
             </div>
 
@@ -264,8 +264,7 @@ export default function LedgerPage() {
               }}
               className="px-3.5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/95 transition-all flex items-center gap-1.5 min-h-[48px] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shrink-0 active:scale-[0.98]"
             >
-              <span>➕ नया ग्राहक</span>
-              <span className="hidden sm:inline">(Add)</span>
+              <span>➕ Add Customer</span>
             </button>
           </div>
 
@@ -292,7 +291,7 @@ export default function LedgerPage() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <span className="text-sm font-bold text-foreground">नया ग्राहक जोड़ें</span>
+                  <span className="text-sm font-bold text-foreground">Add New Customer</span>
                   <span className="text-[10px] text-muted-foreground">Add new customer to ledger</span>
                 </div>
                 <button
@@ -301,7 +300,7 @@ export default function LedgerPage() {
                   className="text-xs text-muted-foreground hover:text-foreground font-semibold px-2 py-1 rounded-md hover:bg-muted/60 cursor-pointer"
                   aria-label="Close add customer form"
                 >
-                  ✕ बंद करें
+                  ✕ Close
                 </button>
               </div>
 
@@ -314,40 +313,40 @@ export default function LedgerPage() {
               <div className="flex flex-col gap-2.5">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold text-foreground">
-                    ग्राहक का नाम (Name) *
+                    Customer Name *
                   </label>
                   <input
                     type="text"
                     required
                     value={newCustName}
                     onChange={(e) => setNewCustName(e.target.value)}
-                    placeholder="उदा: सुनील कुमार"
+                    placeholder="e.g. Ramesh Kumar"
                     className="px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[44px]"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold text-foreground">
-                    फ़ोन नंबर (Phone)
+                    Phone Number
                   </label>
                   <input
                     type="tel"
                     value={newCustPhone}
                     onChange={(e) => setNewCustPhone(e.target.value)}
-                    placeholder="उदा: 9876543210"
+                    placeholder="e.g. 9876543210"
                     className="px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[44px]"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold text-foreground">
-                    टिप्पणी / पता (Notes)
+                    Notes / Address
                   </label>
                   <input
                     type="text"
                     value={newCustNotes}
                     onChange={(e) => setNewCustNotes(e.target.value)}
-                    placeholder="उदा: शर्मा जी के पास वाली गली"
+                    placeholder="e.g. Near Shiv Temple"
                     className="px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[44px]"
                   />
                 </div>
@@ -359,14 +358,14 @@ export default function LedgerPage() {
                   onClick={() => setIsAddCustomerOpen(false)}
                   className="px-4 py-2 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted min-h-[40px] cursor-pointer"
                 >
-                  रद्द करें (Cancel)
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingCustomer}
                   className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/95 disabled:opacity-50 min-h-[40px] flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
-                  {isSubmittingCustomer ? "जोड़ रहा है…" : "ग्राहक जोड़ें (Save)"}
+                  {isSubmittingCustomer ? "Adding..." : "Add Customer"}
                 </button>
               </div>
             </form>
@@ -375,15 +374,15 @@ export default function LedgerPage() {
           {/* Aggregate overview badges */}
           <div className="grid grid-cols-2 gap-2.5">
             <div className="rounded-2xl bg-card border border-border p-3 flex flex-col items-center justify-center text-center">
-              <span className="text-xs font-bold text-foreground">बकाया ग्राहक</span>
+              <span className="text-xs font-bold text-foreground">Customers with Udhar</span>
               <span className="text-[10px] text-muted-foreground">Active Debtors</span>
               <span className="text-lg font-extrabold text-foreground tabular-nums mt-0.5">
                 {debtorsCount} / {customers.length}
               </span>
             </div>
             <div className="rounded-2xl bg-amber-500/10 border border-amber-500/25 p-3 flex flex-col items-center justify-center text-center">
-              <span className="text-xs font-bold text-amber-700 dark:text-amber-400">कुल बकाया</span>
-              <span className="text-[10px] text-muted-foreground">Total Pending Udhar</span>
+              <span className="text-xs font-bold text-amber-700 dark:text-amber-400">Total Pending Udhar</span>
+              <span className="text-[10px] text-muted-foreground">Customer Balance</span>
               <span className="text-lg font-extrabold text-amber-700 dark:text-amber-400 tabular-nums mt-0.5">
                 ₹{totalUdhar.toLocaleString("en-IN")}
               </span>
@@ -397,7 +396,7 @@ export default function LedgerPage() {
               id="search-customer"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ग्राहक का नाम या फोन नंबर खोजें..."
+              placeholder="Search customer by name or phone..."
               className="w-full px-4 py-3 text-sm rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none transition-shadow min-h-[48px]"
             />
             {searchQuery && (
@@ -421,7 +420,7 @@ export default function LedgerPage() {
                 onClick={() => loadLedger(true)}
                 className="underline font-bold text-xs hover:text-destructive/80 cursor-pointer min-h-[36px] flex items-center"
               >
-                पुनः प्रयास (Retry)
+                Retry
               </button>
             </div>
           )}
@@ -441,18 +440,18 @@ export default function LedgerPage() {
               <span className="text-2xl">{searchQuery ? "🔍" : "📋 ✨"}</span>
               <p className="font-semibold text-foreground text-sm">
                 {searchQuery
-                  ? "कोई ग्राहक नहीं मिला (No Customers Found)"
-                  : "खाता बही अभी खाली है (No customers in ledger yet)"}
+                  ? "No Customers Found"
+                  : "Customer ledger is currently empty."}
               </p>
               <p className="text-[11px] max-w-[280px] leading-relaxed">
                 {searchQuery ? (
-                  `"${searchQuery}" से मेल खाता कोई ग्राहक नहीं है।`
+                  `No customer matches "${searchQuery}".`
                 ) : (
                   <>
                     <strong className="text-foreground">
                       Say your first sale to get started:
                     </strong>{" "}
-                    होम पर बोलकर बिक्री दर्ज करें, या नीचे दिए बटन से नमूना ग्राहक व उत्पाद लोड करें।
+                    Record a sale by voice on the home screen, or load sample data below.
                   </>
                 )}
               </p>
@@ -465,11 +464,11 @@ export default function LedgerPage() {
                   className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer mt-1"
                 >
                   {isLoadingSample ? (
-                    <span>डेटा लोड हो रहा है...</span>
+                    <span>Loading sample data...</span>
                   ) : (
                     <>
                       <span>✨</span>
-                      <span>Load sample data / नमूना डेटा लोड करें</span>
+                      <span>Load sample data</span>
                     </>
                   )}
                 </button>
@@ -529,10 +528,10 @@ export default function LedgerPage() {
                         >
                           {hasUdhar
                             ? `₹${customer.balance.toLocaleString("en-IN")}`
-                            : "₹0 चुकता"}
+                            : "₹0 Settled"}
                         </span>
                         <span className="text-[10px] text-muted-foreground">
-                          {hasUdhar ? "उधार बकाया" : "हिसाब साफ"}
+                          {hasUdhar ? "Udhar Due" : "Settled"}
                         </span>
                       </div>
                       {hasUdhar && (
@@ -575,7 +574,7 @@ export default function LedgerPage() {
             <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground gap-2">
               <span className="text-3xl">👈</span>
               <p className="font-semibold text-foreground text-sm">
-                विवरण देखने के लिए किसी ग्राहक को चुनें
+                Select a customer to view details
               </p>
               <p className="text-xs">
                 Select a customer from the list to view their ledger statement and history.

@@ -212,7 +212,7 @@ export function ConfirmationCard({
       const data = await res.json();
 
       if (!res.ok) {
-        setApiError(formatApiError(data.error || "पुष्टि विफल हुई (Confirmation failed)."));
+        setApiError(formatApiError(data.error || "Confirmation failed."));
       } else {
         const result = data.result as LedgerExecutionResult;
         setConfirmedResult(result);
@@ -241,13 +241,13 @@ export function ConfirmationCard({
           </span>
           <div>
             <h3 className="text-base font-bold text-foreground">
-              {initialAction === "add_sale" && "सामान बिक्री (Sale)"}
-              {initialAction === "record_payment" && "उधार भुगतान (Payment)"}
-              {initialAction === "adjust_stock" && "स्टॉक परिवर्तन (Stock Change)"}
-              {initialAction === "add_customer" && "नया ग्राहक (Add Customer)"}
+              {initialAction === "add_sale" && "Sale"}
+              {initialAction === "record_payment" && "Payment"}
+              {initialAction === "adjust_stock" && "Stock Change"}
+              {initialAction === "add_customer" && "Add Customer"}
             </h3>
             <p className="text-xs text-muted-foreground">
-              कृपया विवरण जांचें (Please review details)
+              Please review details
             </p>
           </div>
         </div>
@@ -260,7 +260,7 @@ export function ConfirmationCard({
                 : "bg-primary/10 text-primary"
             }`}
           >
-            {confidenceScore}% विश्वास
+            {confidenceScore}%
           </span>
           <span className="text-[10px] text-muted-foreground">Confidence</span>
         </div>
@@ -271,9 +271,8 @@ export function ConfirmationCard({
         <div className="flex items-start gap-2 rounded-xl bg-amber-500/15 border border-amber-500/30 p-2.5 text-xs text-amber-900 dark:text-amber-200">
           <span className="text-base leading-none">⚠️</span>
           <div>
-            <span className="font-semibold">कृपया विवरण जांचें:</span> AI आत्मविश्वास कम है ({confidenceScore}%).
-            आगे बढ़ने से पहले कृपया नीचे सही मान सत्यापित करें।
-            <div className="text-[10px] opacity-80">Low confidence score. Please verify all fields before confirming.</div>
+            <span className="font-semibold">Please review details:</span> AI confidence is low ({confidenceScore}%).
+            Please verify all values below before confirming.
           </div>
         </div>
       )}
@@ -285,21 +284,21 @@ export function ConfirmationCard({
         <div className="rounded-xl bg-secondary/50 border border-border/50 p-3 flex flex-col gap-2">
           <div className="flex items-center justify-between text-xs">
             <span className="font-semibold text-foreground/90">
-              ग्राहक (Customer):
+              Customer:
             </span>
             {currentMatchStatus === "matched" && (
               <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                ✓ सही पहचान (Matched)
+                ✓ Matched
               </span>
             )}
             {currentMatchStatus === "ambiguous" && (
               <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                ⚠️ संदिग्ध (Ambiguous)
+                ⚠️ Ambiguous
               </span>
             )}
             {currentMatchStatus === "new" && (
               <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                + नया (New Customer)
+                + New Customer
               </span>
             )}
           </div>
@@ -308,7 +307,7 @@ export function ConfirmationCard({
           {currentMatchStatus === "ambiguous" && activeCustomerMatch && activeCustomerMatch.candidates.length > 0 && (
             <div className="flex flex-col gap-1.5 my-1 bg-background/80 rounded-lg p-2.5 border border-border/80">
               <span className="text-xs text-foreground/80 font-medium">
-                समान नाम वाले ग्राहक मिले। सही ग्राहक चुनें:
+                Multiple customers matched with similar names. Select one:
               </span>
               <div className="flex flex-col gap-1">
                 {activeCustomerMatch.candidates.map(({ customer }) => (
@@ -362,7 +361,7 @@ export function ConfirmationCard({
                       }}
                       className="text-primary focus:ring-primary"
                     />
-                    <span>कोई अन्य नया ग्राहक है (Create as separate new customer)</span>
+                    <span>Create as separate new customer</span>
                   </label>
                 )}
               </div>
@@ -372,7 +371,7 @@ export function ConfirmationCard({
           {/* Customer Name Display or Edit input */}
           {isEditing ? (
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-muted-foreground">ग्राहक का नाम (Customer Name)</label>
+              <label className="text-[11px] text-muted-foreground">Customer Name</label>
               <input
                 type="text"
                 value={customerName}
@@ -380,24 +379,24 @@ export function ConfirmationCard({
                   setCustomerName(e.target.value);
                   setSelectedCustomerId(null);
                 }}
-                placeholder="ग्राहक का नाम दर्ज करें"
+                placeholder="Enter customer name"
                 className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[44px]"
               />
               {isCustomerNameEdited && activeCustomerMatch?.status === "matched" && activeCustomerMatch.matched && (
                 <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                  ✓ मौजूदा ग्राहक से मिला: {activeCustomerMatch.matched.name}
+                  ✓ Matched existing customer: {activeCustomerMatch.matched.name}
                 </div>
               )}
               {isCustomerNameEdited && currentMatchStatus === "new" && customerName.trim() && (
                 <div className="text-[11px] text-amber-700 dark:text-amber-400">
-                  ⚠️ यह नाम किसी मौजूदा ग्राहक से मेल नहीं खाता। पुष्टि करने के लिए नीचे &apos;नया जोड़ें&apos; चुनें।
+                  ⚠️ Name does not match any existing customer. Check &apos;Save customer in directory&apos; below to add.
                 </div>
               )}
             </div>
           ) : (
             <div className="flex items-center justify-between">
               <span className="text-base font-bold text-foreground">
-                {activeCustomerMatch?.matched?.name || customerName || "(अनाम ग्राहक / Anonymous)"}
+                {activeCustomerMatch?.matched?.name || customerName || "(Anonymous Customer)"}
               </span>
               {activeCustomerMatch?.matched?.phone && (
                 <span className="text-xs text-muted-foreground">
@@ -416,7 +415,7 @@ export function ConfirmationCard({
                 onChange={(e) => setCreateCustomer(e.target.checked)}
                 className="rounded border-border text-primary focus:ring-primary"
               />
-              <span>इस ग्राहक को खाता बही में नया जोड़ें (Save customer in directory)</span>
+              <span>Save customer in directory</span>
             </label>
           )}
 
@@ -424,8 +423,8 @@ export function ConfirmationCard({
           {!isCustomerMatchValid && (
             <p className="text-[11px] text-destructive font-medium">
               {initialAction === "record_payment"
-                ? "उधार भुगतान केवल मौजूदा ग्राहक के लिए दर्ज हो सकता है। (Payment requires an existing customer)."
-                : "अमान्य नाम: कृपया सही ग्राहक चुनें या 'नया जोड़ें' पर टिक करें। (Please match customer or mark as new)."}
+                ? "Payment requires an existing customer."
+                : "Please select a matching customer or mark as new."}
             </p>
           )}
         </div>
@@ -435,7 +434,7 @@ export function ConfirmationCard({
       {initialAction === "add_sale" && (
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-border">
-            <span className="text-[11px] text-muted-foreground">कुल (Total)</span>
+            <span className="text-[11px] text-muted-foreground">Total</span>
             {isEditing ? (
               <input
                 type="number"
@@ -453,7 +452,7 @@ export function ConfirmationCard({
 
           <div className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-border">
             <span className="text-[11px] text-emerald-600 dark:text-emerald-400">
-              नकद दिया (Paid)
+              Paid
             </span>
             {isEditing ? (
               <input
@@ -472,7 +471,7 @@ export function ConfirmationCard({
 
           <div className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25">
             <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-              उधार (Udhar)
+              Udhar
             </span>
             <span className="text-lg font-extrabold text-amber-700 dark:text-amber-400 tabular-nums">
               ₹{udharAmount.toLocaleString("en-IN")}
@@ -485,7 +484,7 @@ export function ConfirmationCard({
       {initialAction === "record_payment" && (
         <div className="flex flex-col items-center justify-center p-3.5 rounded-xl bg-card border border-border gap-1">
           <span className="text-xs text-muted-foreground">
-            जमा की गई राशि (Payment Received)
+            Payment Received
           </span>
           {isEditing ? (
             <input
@@ -507,7 +506,7 @@ export function ConfirmationCard({
       {initialAction === "adjust_stock" && (
         <div className="flex flex-col p-3 rounded-xl bg-card border border-border gap-2">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">सामग्री (Product):</span>
+            <span className="text-muted-foreground">Product:</span>
             {isEditing ? (
               <input
                 type="text"
@@ -520,7 +519,7 @@ export function ConfirmationCard({
             )}
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">मात्रा में बदलाव (Qty Change):</span>
+            <span className="text-muted-foreground">Qty Change:</span>
             {isEditing ? (
               <input
                 type="number"
@@ -539,7 +538,7 @@ export function ConfirmationCard({
 
       {/* ── Plain-language Summary ── */}
       <div className="rounded-xl bg-muted/40 p-3 text-xs text-foreground/90 leading-relaxed border border-border/40">
-        <span className="font-semibold">सारांश: </span>
+        <span className="font-semibold">Summary: </span>
         {parsed.summary}
       </div>
 
@@ -551,7 +550,7 @@ export function ConfirmationCard({
         >
           <span className="text-base leading-none">❌</span>
           <div className="flex-1">
-            <p className="font-semibold">त्रुटि (Error):</p>
+            <p className="font-semibold">Error:</p>
             <p>{apiError}</p>
           </div>
         </div>
@@ -565,14 +564,14 @@ export function ConfirmationCard({
         >
           <div className="flex items-center gap-2 font-bold text-sm">
             <span>✅</span>
-            <span>लेन-देन सफलतापूर्वक दर्ज हुआ!</span>
+            <span>Transaction recorded successfully!</span>
           </div>
           <p className="text-[11px] opacity-90">
-            {confirmedResult.summary || "खाता बही अपडेट हो गई है।"}
+            {confirmedResult.summary || "Ledger updated successfully."}
           </p>
           {confirmedResult.customer?.balance !== undefined && (
             <div className="mt-1 pt-2 border-t border-emerald-500/20 flex items-center justify-between font-semibold text-xs">
-              <span>{confirmedResult.customer.name} का नया बकाया:</span>
+              <span>{confirmedResult.customer.name}&apos;s New Balance:</span>
               <span className="text-sm font-extrabold text-amber-700 dark:text-amber-300">
                 ₹{confirmedResult.customer.balance.toLocaleString("en-IN")}
               </span>
@@ -612,10 +611,10 @@ export function ConfirmationCard({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
-                <span>सहेज रहा है... (Saving)</span>
+                <span>Saving...</span>
               </>
             ) : (
-              <span>पुष्टि करें (Confirm)</span>
+              <span>Confirm</span>
             )}
           </button>
 
@@ -626,7 +625,7 @@ export function ConfirmationCard({
             disabled={isSaving}
             className="flex items-center justify-center px-4 py-3 rounded-xl border border-border bg-background text-foreground font-semibold text-xs hover:bg-muted/50 active:scale-[0.98] transition-all min-h-[48px] cursor-pointer"
           >
-            {isEditing ? "हो गया (Done)" : "बदलें (Edit)"}
+            {isEditing ? "Done" : "Edit"}
           </button>
 
           <button
@@ -636,7 +635,7 @@ export function ConfirmationCard({
             disabled={isSaving}
             className="flex items-center justify-center px-4 py-3 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors text-xs font-semibold min-h-[48px] cursor-pointer"
           >
-            रद्द करें (Cancel)
+            Cancel
           </button>
         </div>
       )}

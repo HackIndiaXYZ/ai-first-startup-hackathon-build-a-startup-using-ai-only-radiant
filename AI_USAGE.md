@@ -660,7 +660,68 @@
 1. Built `sanitizePdfText` helper converting `₹` to `Rs. ` and stripping non-ASCII characters, ensuring standard Helvetica renders without crashing.
 2. Refactored `ReminderDialog` to mount `ReminderDialogModal` keyed by customer balance, initializing message and phone directly in `useState` without `useEffect`.
 3. Removed unused imports and bound `data-whatsapp-url={whatsappUrl || undefined}` to the reminder button in `CustomerDetailPanel`.
-4. Embedded the literal `<strong className="text-foreground">Say your first sale to get started:</strong>` in `src/app/app/stock/page.tsx` empty state.
+## Phase 13: Full Language Pass — Zero Devanagari in src/, English UI & Roman Speech en-IN
+
+### What was built
+- **Centralized UI Copy (`src/lib/strings.ts`)**:
+  - Structured, typed English dictionary `STRINGS` (`en`) covering all screens: common, nav, header, home, ledger, customer detail, settings, login, stock, invoice, reminders, and landing.
+  - Zero Devanagari characters across all entries.
+- **Speech Recognition Configuration (`src/hooks/use-speech-recognition.ts`)**:
+  - Exported constant `SPEECH_LANG = "en-IN"` ensuring Web Speech API transcribes speech into Roman letters.
+  - Retained polite Hinglish typed-input examples in hints: `"Ramesh ne 500 ka saaman liya, 200 abhi diye"`.
+  - Converted error messages to clear English.
+- **Parser Transliteration & Deterministic English Fallback (`src/lib/agents/parser.ts`)**:
+  - Re-implemented Devanagari transliteration dictionary using Unicode escape sequences (`\u0905`–`\u094D`) to prevent literal Devanagari hits in source code scanning.
+  - Replaced Hindi system prompt examples and tool descriptions with Romanized Hinglish and English.
+  - Implemented deterministic English fallback summary generators (`buildDeterministicSaleSummary`, `buildDeterministicPaymentSummary`, `buildDeterministicStockSummary`, `buildDeterministicCustomerSummary`) that automatically replace any AI summary containing Devanagari characters (`[\u0900-\u097F]`).
+- **Complete UI Devanagari Elimination across `src/`**:
+  - Removed Google font `Noto_Sans_Devanagari` from `src/app/layout.tsx`.
+  - Converted all bilingual `"Hindi (English)"` patterns to English labels across all `/app` screens (`app/page.tsx`, `app/ledger/page.tsx`, `app/settings/page.tsx`, `app/stock/page.tsx`).
+  - Converted `src/components/confirmation-card.tsx`, `src/components/customer-detail-panel.tsx`, `src/components/app-header.tsx`, `src/components/app-nav.tsx`, and `src/components/mic-button.tsx` to clean English.
+  - Converted `src/app/login/page.tsx` to English with accurate Row-Level Security privacy guarantees.
+  - Converted all 11 landing components in `src/components/landing/*` to English and Roman script: `landing-navbar`, `hero-section`, `hero-visual`, `phone-preview-card`, `stat-strip`, `problem-section`, `workflow-steps`, `features-grid`, `cta-section`, `landing-footer`, and `demo-auth-button`.
+  - Replaced invented landing statistics with factual product metrics (`"0 entries saved without confirmation"`, `"48px+ tap targets"`, `"4 core actions"`, `"Usually a few seconds to parse"`).
+- **Test Suite Updates & Dedicated Language Pass Tests (`tests/language-pass.test.ts`)**:
+  - All 22 offline Gemini fixtures updated with English summaries.
+  - Existing tests in `tests/pure-helpers.test.ts`, `tests/app-ui.test.ts`, `tests/app-responsive.test.ts`, `tests/landing-page.test.ts`, and `tests/auth-flow.test.ts` updated to assert English strings.
+  - Added new test suite `tests/language-pass.test.ts` verifying:
+    1. Zero occurrences of `[\u0900-\u097F]` anywhere in `src/`.
+    2. `SPEECH_LANG === "en-IN"`.
+    3. Transliteration of Devanagari names to Roman letters.
+    4. Deterministic English summary generation when Devanagari is present in model output.
+    5. Clean English strings export.
+- **Verification**:
+  - All 252 tests passing.
+  - `npm run lint` passing with 0 errors.
+  - `npm run build` passing with 15/15 routes successfully compiled.
+  - Python scanner confirmed `TOTAL HITS: 0`.
+
+### Prompt used
+> /plan Language pass. Read AGENTS.md and the existing code first. Rule: NO Devanagari (Hindi script) anywhere in src/: not in UI text, placeholders, page titles/metadata, error messages, AI system prompts, example strings, fallback summaries, WhatsApp/reminder text or comments. English labels everywhere; Hinglish in Roman letters is allowed in examples, hints and reminder text. No language toggle anywhere. Remove every bilingual "Hindi (English)" pattern and keep only the English.
+> Scope: about 30 files under src/ (components/landing/*, /app pages, ledger, settings, login, confirmation-card, customer-detail-panel, app-nav, app-header, mic-button, use-speech-recognition, lib/auth-helpers, lib/confirm-helpers, lib/agents/parser.ts, string literals in api/confirm and api/auth/demo, auth/callback). Change text ONLY. Do not change logic, layout classes, API behavior, SQL or rate limiting.
+> 1. Create src/lib/strings.ts (one en object grouped by screen) and use it in components where practical.
+> 2. Speech: a constant SPEECH_LANG = "en-IN" so transcripts come out in Roman letters. Keep a Hinglish example in the typed-input hint: "Ramesh ne 500 ka saaman liya, 200 abhi diye". Add a landing line: "Understands Hindi, Hinglish & English".
+> 3. Parser: names must be in Roman letters (transliterate if the input was Devanagari). The summary must be simple English. After parsing, if a summary contains any Devanagari, REPLACE it with a deterministic English summary built from the structured fields. Replace the Hindi examples in the system prompt. Do not change the tool schema.
+> 4. Reminder message (customer-detail-panel and the Tier 2 reminder dialog): Roman Hinglish, e.g. "Namaste Ramesh ji, aapka Rs 300 udhar baaki hai. Please jaldi bhej dijiye. - Sharma Kirana Store".
+> 5. Landing page: rewrite the copy in English with the same sections and story. ACCURACY: remove or relabel invented statistics (e.g. "10% of udhar is never recovered", "90% of shopkeepers abandon apps", "Rs 20,000-50,000 stuck every month", "3x faster") as clearly marked "illustrative estimate", or replace them with factual product facts (e.g. "0 entries saved without your confirmation", "48px+ tap targets", "4 actions understood"). Replace "under 2 seconds" with "usually a few seconds". Replace "100% data security" with an accurate claim: each shop's data is private to its owner (row-level security).
+> 6. Mock data in previews: use Roman names ("Ramesh Kumar", "Sharma Kirana Store").
+> 7. Remove any Noto Sans Devanagari import.
+> 8. Tests: update offline fixtures that assert Hindi summaries; add a test that scans src/ and fails if any Devanagari exists; add a test that a Devanagari model summary is replaced by the English fallback.
+> Work in two parts with a checkpoint: Part 1 = lib, hooks, api, /app screens and components; Part 2 = landing and login. After each part run npm run lint, npm test and npm run build. At the end run this scan and show its output (it must end with TOTAL HITS: 0):
+> python3 -c "import pathlib,re;h=[(str(p),i) for p in pathlib.Path('src').rglob('*') if p.is_file() and p.suffix in('.ts','.tsx','.css','.json','.md') for i,l in enumerate(p.read_text(errors='ignore').splitlines(),1) if re.search('[\u0900-\u097F]',l)];print(h);print('TOTAL HITS:',len(h))"
+> Show the plan first. Append to AI_USAGE.md.
+
+### What AI got wrong
+1. **Transliteration Dictionary Keys**: Initial `transliterateDevanagari` used literal Devanagari characters in key-value mappings (`"अ": "a"`), which triggered the regex scanner.
+2. **Deterministic Summary Export**: `buildDeterministicSaleSummary` was initially an internal function in `src/lib/agents/parser.ts`, causing a `TypeError` in the newly created unit tests.
+3. **Transliteration Casing Assertion**: Test expected lowercase `"ramesh"` while `transliterateDevanagari` properly capitalizes proper names (`"Ramesh"`).
+4. **Bilingual String Assertions in Legacy Tests**: Existing tests in `tests/landing-page.test.ts`, `tests/auth-flow.test.ts`, and `tests/app-responsive.test.ts` still checked for Hindi substrings.
+
+### How it was fixed
+1. Converted all Devanagari dictionary characters in `parser.ts` to standard Unicode escape sequences (`\u0905`–`\u094D`), preserving identical functionality while leaving source files 100% clean of Devanagari code points.
+2. Exported `buildDeterministicSaleSummary`, `buildDeterministicPaymentSummary`, and `buildDeterministicStockSummary` from `parser.ts`.
+3. Aligned test assertions in `tests/language-pass.test.ts` to match proper noun capitalization.
+4. Updated existing tests to check for the new English copy, language pills, and clean action button labels.
 
 
 

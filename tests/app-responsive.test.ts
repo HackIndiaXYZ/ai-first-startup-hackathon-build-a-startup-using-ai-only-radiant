@@ -81,14 +81,14 @@ describe("App Responsive Pass (>= 1024px and Mobile < 1024px)", () => {
       assert.ok(appPageSrc.includes("contents lg:flex lg:flex-col lg:gap-6 lg:col-span-5"));
       // Business overview (Sales + Udhar)
       assert.ok(appPageSrc.includes('aria-label="Business overview"'));
-      assert.ok(appPageSrc.includes("आज की बिक्री"));
-      assert.ok(appPageSrc.includes("कुल उधार"));
+      assert.ok(appPageSrc.includes("Today&apos;s Sales") || appPageSrc.includes("Today's Sales"));
+      assert.ok(appPageSrc.includes("Total Pending Udhar"));
       // Top debtors
       assert.ok(appPageSrc.includes('aria-label="Top debtors"'));
-      assert.ok(appPageSrc.includes("शीर्ष बकायेदार"));
+      assert.ok(appPageSrc.includes("Top Debtors"));
       // Low stock
       assert.ok(appPageSrc.includes('aria-label="Low stock items"'));
-      assert.ok(appPageSrc.includes("कम स्टॉक चेतावनी"));
+      assert.ok(appPageSrc.includes("Low Stock Alerts"));
     });
 
     it("preserves exact mobile layout ordering (< 1024px) via display: contents and order-1..6", () => {
@@ -120,9 +120,9 @@ describe("App Responsive Pass (>= 1024px and Mobile < 1024px)", () => {
 
     it("CustomerDetailPanel renders customer header, balance, quick action, and transactions", () => {
       assert.ok(detailPanelSrc.includes("CustomerDetailPanel"));
-      assert.ok(detailPanelSrc.includes("वर्तमान बकाया (Current Udhar Balance)"));
-      assert.ok(detailPanelSrc.includes("लेन-देन इतिहास (Transaction History)"));
-      assert.ok(detailPanelSrc.includes("नया हिसाब दर्ज करें"));
+      assert.ok(detailPanelSrc.includes("Current Udhar Balance"));
+      assert.ok(detailPanelSrc.includes("Transaction History"));
+      assert.ok(detailPanelSrc.includes("Record Payment"));
     });
   });
 

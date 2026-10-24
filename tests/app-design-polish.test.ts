@@ -56,20 +56,16 @@ describe("Design Polish Pass for /app Only", () => {
     });
 
     it("renders summary row with today's sales and total udhar", () => {
-      assert.ok(homePageSrc.includes("आज की बिक्री"), "Shows Hindi today sales label");
       assert.ok(homePageSrc.includes("Today's Sales") || homePageSrc.includes("Today&apos;s Sales"), "Shows English sales label");
-      assert.ok(homePageSrc.includes("कुल उधार"), "Shows Hindi total udhar label");
       assert.ok(homePageSrc.includes("Total Pending Udhar"), "Shows English udhar label");
     });
 
-    it("provides clean empty state for Top Debtors with 'No udhar yet'", () => {
-      assert.ok(homePageSrc.includes("No udhar yet"), "Debtors should show 'No udhar yet' empty state");
-      assert.ok(homePageSrc.includes("कोई बकाया नहीं है"), "Debtors Hindi empty state");
+    it("provides clean empty state for Top Debtors with 'No udhar yet' or settled accounts", () => {
+      assert.ok(homePageSrc.includes("All customer accounts are settled") || homePageSrc.includes("No pending udhar"), "Debtors should show settled accounts empty state");
     });
 
     it("provides clean empty state for Low Stock with 'All items in stock'", () => {
       assert.ok(homePageSrc.includes("All items in stock"), "Low stock should show 'All items in stock' empty state");
-      assert.ok(homePageSrc.includes("सभी सामान पर्याप्त हैं"), "Low stock Hindi empty state");
     });
 
     it("renders skeleton loaders during initial loading", () => {
@@ -86,12 +82,12 @@ describe("Design Polish Pass for /app Only", () => {
 
     it("displays udhar balance on each customer row", () => {
       assert.ok(ledgerPageSrc.includes("customer.balance"), "Customer balance should be rendered");
-      assert.ok(ledgerPageSrc.includes("उधार बकाया") || ledgerPageSrc.includes("हिसाब साफ"), "Status label for balance");
+      assert.ok(ledgerPageSrc.includes("Udhar Due") || ledgerPageSrc.includes("Settled"), "Status label for balance");
     });
 
     it("includes a visible 'Add customer' button and validated form calling /api/confirm with add_customer", () => {
       assert.ok(ledgerPageSrc.includes("btn-add-customer-ledger"), "Visible Add Customer button should exist");
-      assert.ok(ledgerPageSrc.includes("➕ नया ग्राहक"), "Add customer button text");
+      assert.ok(ledgerPageSrc.includes("Add Customer"), "Add customer button text");
       assert.ok(ledgerPageSrc.includes("action: \"add_customer\""), "Calls add_customer action");
       assert.ok(ledgerPageSrc.includes("/api/confirm"), "Posts to /api/confirm");
       assert.ok(ledgerPageSrc.includes("newCustName"), "Customer name field should exist");
@@ -179,9 +175,9 @@ describe("Design Polish Pass for /app Only", () => {
 
   describe("5. Feedback & Accessibility", () => {
     it("provides loading spinners and feedback text on submit buttons", () => {
-      assert.ok(homePageSrc.includes("दर्ज हो रहा…") || homePageSrc.includes("isParsing"), "Parse submit feedback");
-      assert.ok(ledgerPageSrc.includes("जोड़ रहा है…") || ledgerPageSrc.includes("isSubmittingCustomer"), "Add customer submit feedback");
-      assert.ok(confirmationCardSrc.includes("सहेज रहा है...") || confirmationCardSrc.includes("isSaving"), "Confirm entry submit feedback");
+      assert.ok(homePageSrc.includes("Recording...") || homePageSrc.includes("isParsing"), "Parse submit feedback");
+      assert.ok(ledgerPageSrc.includes("Adding...") || ledgerPageSrc.includes("isSubmittingCustomer"), "Add customer submit feedback");
+      assert.ok(confirmationCardSrc.includes("Saving...") || confirmationCardSrc.includes("isSaving"), "Confirm entry submit feedback");
     });
 
     it("enforces minimum 48px tap targets on interactive elements", () => {

@@ -165,16 +165,16 @@ function CssHeroVisual() {
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-1.5 font-bold text-white">
             <span className="p-1 rounded-md bg-violet-500/20 text-violet-300">🛒</span>
-            <span>रमेश कुमार</span>
+            <span>Ramesh Kumar</span>
           </div>
           <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-            ✓ पुष्टि हुई
+            ✓ Confirmed
           </span>
         </div>
         <div className="flex items-center justify-between text-[11px] pt-1 border-t border-white/10">
-          <span className="text-white/60">कुल: ₹500 · नकद: ₹200</span>
+          <span className="text-white/60">Total: ₹500 · Cash: ₹200</span>
           <span className="font-extrabold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
-            उधार ₹300
+            Udhar ₹300
           </span>
         </div>
       </motion.div>
@@ -188,15 +188,15 @@ function CssHeroVisual() {
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-1.5 font-bold text-white">
             <span className="p-1 rounded-md bg-indigo-500/20 text-indigo-300">📦</span>
-            <span>आशीर्वाद आटा 5kg</span>
+            <span>Aashirvaad Atta 5kg</span>
           </div>
           <span className="text-[10px] font-semibold text-violet-300 bg-violet-500/10 px-2 py-0.5 rounded-full border border-violet-500/20">
-            +10 पैकेट
+            +10 packets
           </span>
         </div>
         <div className="text-[11px] text-white/60 flex items-center justify-between pt-1 border-t border-white/10">
-          <span>नया स्टॉक: 34 पैकेट</span>
-          <span className="text-emerald-400 font-medium">स्टॉक पर्याप्त</span>
+          <span>New Stock: 34 packets</span>
+          <span className="text-emerald-400 font-medium">In Stock</span>
         </div>
       </motion.div>
 
@@ -207,7 +207,7 @@ function CssHeroVisual() {
         className="absolute top-10 sm:top-12 left-0 sm:-left-4 z-20 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-xl text-[11px] font-semibold text-emerald-300 flex items-center gap-1.5 shadow-lg shadow-black/60 max-w-[80%]"
       >
         <span>💬</span>
-        <span className="truncate">1-Tap WhatsApp तगादा</span>
+        <span className="truncate">1-Tap WhatsApp Reminder</span>
       </motion.div>
     </div>
   );

@@ -3,28 +3,28 @@
 export function StatStrip() {
   const stats = [
     {
-      value: "₹18,500+*",
-      unit: "प्रति माह",
-      label: "औसत फंसा उधार वसूली",
-      englishLabel: "Avg. faster credit recovery/mo",
+      value: "0",
+      unit: "Unconfirmed entries",
+      label: "0 entries saved without confirmation",
+      subLabel: "You review and confirm every parsed entry",
     },
     {
-      value: "3x तेज़*",
-      unit: "समय की बचत",
-      label: "कागज़ी डायरी से हिसाब लिखना",
-      englishLabel: "Faster than pen & paper notebook",
+      value: "48px+",
+      unit: "Tap targets",
+      label: "Designed for busy shop counters",
+      subLabel: "Large buttons, high-contrast mobile UI",
     },
     {
-      value: "100%*",
-      unit: "देसी भाषा",
-      label: "हिंग्लिश व हिंदी बोलचाल अनुकूल",
-      englishLabel: "Tailored for Indian Kirana slang",
+      value: "4",
+      unit: "Core actions",
+      label: "Sales, Udhar, Stock & Customers",
+      subLabel: "Handled through voice and text in Hinglish",
     },
     {
-      value: "<2 सेकंड*",
-      unit: "बिजली सा तेज़",
-      label: "बोलने से पुष्टि कार्ड तैयार",
-      englishLabel: "Instant speech-to-confirm",
+      value: "A few sec",
+      unit: "Speech-to-confirm",
+      label: "Usually a few seconds to parse",
+      subLabel: "Fast AI parsing powered by Gemini",
     },
   ];
 
@@ -52,7 +52,7 @@ export function StatStrip() {
                   {s.label}
                 </span>
                 <span className="text-[11px] text-white/50">
-                  {s.englishLabel}
+                  {s.subLabel}
                 </span>
               </div>
             ))}
@@ -61,7 +61,7 @@ export function StatStrip() {
           {/* Clear Illustrative Notice per Hackathon Rules */}
           <div className="pt-4 border-t border-white/10 text-center">
             <p className="text-[11px] text-white/50">
-              *अनुमानित एवं प्रतीकात्मक आंकड़े (Illustrative projections based on average operational metrics for independent Indian retail kirana stores).
+              *Illustrative estimate based on average operational kirana metrics. Product features and security guarantees are factual.
             </p>
           </div>
         </div>

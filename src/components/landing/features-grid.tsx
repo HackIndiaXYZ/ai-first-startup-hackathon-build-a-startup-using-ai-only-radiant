@@ -4,50 +4,44 @@ export function FeaturesGrid() {
   const features = [
     {
       icon: "🎙️",
-      title: "वॉयस और टाइपिंग दोनों",
-      englishTitle: "Hinglish Voice & Typed Entry",
+      title: "Hinglish Voice & Typed Entry",
       description:
-        "काउंटर पर बोलें या टाइप करें। हिंदी, हिंग्लिश और देसी बोलचाल को आसानी से समझता है।",
+        "Speak at the counter or type quickly. Understands Hindi, Hinglish, and everyday colloquial kirana speech.",
       badge: "Web Speech API",
     },
     {
       icon: "👥",
-      title: "स्मार्ट ग्राहक पहचान",
-      englishTitle: "Cultural Name Matching",
+      title: "Cultural Name Matching",
       description:
-        "रमेश, रमेश जी, रमेश भाई — उपनाम और आदरसूचक समझकर सही खाते से जोड़ता है। कभी डुप्लिकेट नहीं बनाता।",
+        "Ramesh, Ramesh ji, Ramesh bhai — understands surnames and honorifics to link to the right ledger account without duplicates.",
       badge: "Fuzzy Logic",
     },
     {
       icon: "📊",
-      title: "लाइव उधारी डैशबोर्ड",
-      englishTitle: "Real-Time Udhar Tracking",
+      title: "Real-Time Udhar Tracking",
       description:
-        "आज की बिक्री, कुल बकाया और शीर्ष बकायेदारों की तुरंत सूची। एक नज़र में दुकान की वित्तीय स्थिति समझें।",
+        "Today's sales, total pending credit, and top debtors list at a glance. Always know who owes what.",
       badge: "Live Balance View",
     },
     {
       icon: "💬",
-      title: "1-क्लिक व्हाट्सएप तगादा",
-      englishTitle: "Instant WhatsApp Reminders",
+      title: "Instant WhatsApp Reminders",
       description:
-        "बिना किसी संकोच के शिष्ट हिंदी में भुगतान याद दिलाएं। wa.me लिंक से तुरंत तैयार मैसेज खुलता है।",
+        "Send polite Hinglish payment reminders without awkwardness. Opens pre-composed WhatsApp wa.me links in one tap.",
       badge: "1-Tap wa.me",
     },
     {
       icon: "📦",
-      title: "कम स्टॉक चेतावनी",
-      englishTitle: "Low-Stock Reorder Triggers",
+      title: "Low-Stock Reorder Triggers",
       description:
-        "दुकान में कौन सा सामान खत्म होने वाला है, इसकी पहले ही सतर्कता। कभी ग्राहक खाली हाथ नहीं लौटेगा।",
+        "Proactive alerts whenever inventory drops below reorder thresholds so your shop never runs out of essentials.",
       badge: "Stock Protection",
     },
     {
       icon: "🛡️",
-      title: "ज़ीरो-सरप्राइज डेटा सुरक्षा",
-      englishTitle: "Atomic Single-Tx Safety",
+      title: "Private Store Data (RLS)",
       description:
-        "आपके पुष्टि बटन दबाने के बाद ही बहीखाते और स्टॉक में एक साथ सुरक्षित एंट्री होती है।",
+        "Each shop's data is private to its owner through Postgres Row-Level Security. Entries save only after your confirmation.",
       badge: "Atomic RPC",
     },
   ];
@@ -61,16 +55,16 @@ export function FeaturesGrid() {
         {/* Section Header with clamp() fluid scaling */}
         <div data-reveal-header className="flex flex-col items-center text-center gap-3 max-w-2xl mx-auto mb-14 sm:mb-16">
           <span className="text-xs font-bold tracking-wider uppercase text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3.5 py-1 rounded-full">
-            खास सुविधाएं (Key Features)
+            Key Features
           </span>
           <h2 className="text-[clamp(1.65rem,3.2vw+0.6rem,2.75rem)] font-black text-white tracking-tight">
-            किराना स्टोर के लिए{" "}
+            Built specifically for{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-indigo-300 to-amber-300">
-              सबसे ताकतवर टूल्स
+              Indian Kirana Stores
             </span>
           </h2>
           <p className="text-[clamp(0.95rem,1vw+0.65rem,1.125rem)] text-white/70">
-            DukaanAI को विशेष रूप से भारतीय खुदरा दुकानदारों की रोज़मर्रा की चुनौतियों को हल करने के लिए बनाया गया है:
+            DukaanAI eliminates pen-and-paper friction while keeping you in complete control of every transaction:
           </p>
         </div>
 
@@ -96,9 +90,6 @@ export function FeaturesGrid() {
                   <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-violet-200 transition-colors">
                     {feature.title}
                   </h3>
-                  <span className="text-xs text-white/50 font-medium">
-                    {feature.englishTitle}
-                  </span>
                 </div>
 
                 <p className="text-xs sm:text-sm text-white/70 leading-relaxed">

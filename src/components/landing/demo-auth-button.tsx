@@ -56,14 +56,14 @@ export function DemoAuthButton({
         });
         const data = await res.json();
         if (!res.ok) {
-          setErrorMsg(data.error || "डेमो लॉगिन विफल रहा (Demo login failed)");
+          setErrorMsg(data.error || "Demo login failed");
         } else {
           router.push("/app");
           router.refresh();
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Network error";
-        setErrorMsg(`कनेक्शन त्रुटि: ${msg}`);
+        setErrorMsg(`Connection error: ${msg}`);
       }
     });
   };
@@ -85,7 +85,7 @@ export function DemoAuthButton({
         disabled
         className={`inline-flex items-center justify-center font-bold bg-violet-600/60 text-white/80 opacity-70 cursor-wait transition-all shadow-lg shadow-violet-950/40 ${focusClasses} ${sizeClasses} ${className}`}
       >
-        <span>लोड हो रहा है...</span>
+        <span>Loading...</span>
       </button>
     );
   }
@@ -98,7 +98,7 @@ export function DemoAuthButton({
         id="btn-go-to-shop"
         className={`inline-flex items-center justify-center gap-2 font-bold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-600/30 hover:shadow-violet-600/50 active:scale-[0.98] transition-all cursor-pointer border border-white/10 ${focusClasses} ${sizeClasses} ${className}`}
       >
-        <span>दुकान में जाएं / Go to Shop</span>
+        <span>Go to Shop</span>
         <span aria-hidden="true" className="text-amber-400">
           →
         </span>
@@ -138,7 +138,7 @@ export function DemoAuthButton({
                   d="M4 12a8 8 0 018-8v8H4z"
                 />
               </svg>
-              <span>लॉगिन हो रहा है... (Starting demo...)</span>
+              <span>Starting demo...</span>
             </>
           ) : (
             <>
@@ -150,7 +150,7 @@ export function DemoAuthButton({
                   ✨
                 </span>
               )}
-              <span>डेमो आज़माएँ / Try demo</span>
+              <span>Try demo</span>
               <span
                 aria-hidden="true"
                 className="group-hover:translate-x-0.5 transition-transform text-white/70"
@@ -186,7 +186,7 @@ export function DemoAuthButton({
             ✨
           </span>
         )}
-        <span>डेमो आज़माएँ / Try demo</span>
+        <span>Try demo</span>
         <span
           aria-hidden="true"
           className="group-hover:translate-x-0.5 transition-transform text-white/70"

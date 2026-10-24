@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     loginUrl.searchParams.set(
       "error_description",
       exchangeError.message ||
-        "कोड विनिमय विफल रहा (Failed to exchange authorization code for session)"
+        "Failed to exchange authorization code for session"
     );
     return NextResponse.redirect(loginUrl);
   }

@@ -18,7 +18,7 @@ export function LandingFooter() {
             >
               <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-violet-600 via-indigo-600 to-amber-500 p-0.5">
                 <div className="w-full h-full bg-[#0b091a] rounded-[6px] flex items-center justify-center text-sm font-black text-white">
-                  द
+                  D
                 </div>
               </div>
               <span className="text-xl font-black tracking-tight text-white">
@@ -28,7 +28,7 @@ export function LandingFooter() {
             <p className="text-xs text-white/60 max-w-sm">
               &ldquo;Talk to your shop. DukaanAI keeps the books.&rdquo;
               <br />
-              भारतीय किराना स्टोर मालिकों के लिए वॉयस-फर्स्ट AI बहीखाता को-पायलट।
+              Voice-first AI ledger co-pilot for Indian kirana store owners.
             </p>
           </div>
 
@@ -74,31 +74,31 @@ export function LandingFooter() {
               href="#problem"
               className="hover:text-white transition-colors py-3 px-2.5 inline-flex items-center min-h-[48px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
             >
-              समस्या
+              The Problem
             </a>
             <a
               href="#workflow"
               className="hover:text-white transition-colors py-3 px-2.5 inline-flex items-center min-h-[48px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
             >
-              कार्यप्रणाली
+              How it Works
             </a>
             <a
               href="#preview"
               className="hover:text-white transition-colors py-3 px-2.5 inline-flex items-center min-h-[48px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
             >
-              प्रिव्यू
+              Live Preview
             </a>
             <a
               href="#features"
               className="hover:text-white transition-colors py-3 px-2.5 inline-flex items-center min-h-[48px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
             >
-              सुविधाएं
+              Features
             </a>
             <a
               href="#stats"
               className="hover:text-white transition-colors py-3 px-2.5 inline-flex items-center min-h-[48px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
             >
-              आंकड़े
+              Highlights
             </a>
           </nav>
 

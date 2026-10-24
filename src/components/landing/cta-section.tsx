@@ -14,19 +14,19 @@ export function CtaSection() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold">
             <span>🇮🇳</span>
-            <span>बिना किसी शुल्क या सेटअप के तुरंत आज़माएँ</span>
+            <span>Instant access with sample data, no setup required</span>
           </div>
 
           {/* Heading with clamp() fluid scaling */}
           <h2 className="text-[clamp(1.65rem,3.2vw+0.6rem,2.75rem)] font-black text-white tracking-tight max-w-2xl">
-            अपनी दुकान को बनाएं{" "}
+            Make your store{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-indigo-200 to-amber-300">
-              AI-स्मार्ट और तनावमुक्त
+              AI-smart and stress-free
             </span>
           </h2>
 
           <p className="text-[clamp(0.95rem,1vw+0.65rem,1.125rem)] text-white/70 max-w-xl">
-            कागज़ की डायरी खोने का डर और फंसा हुआ उधार अब बीते कल की बात है। सीधे लाइव डेमो आज़माकर देखें कि DukaanAI कैसे काम करता है।
+            Skip lost paper notebooks and untracked credit. Try the live interactive demo to see how voice-first bookkeeping keeps your ledger accurate.
           </p>
 
           {/* Primary CTA */}
@@ -39,13 +39,13 @@ export function CtaSection() {
           {/* Trust Guarantees */}
           <div className="flex flex-wrap items-center justify-center gap-6 pt-4 text-xs text-white/60">
             <span className="flex items-center gap-1.5">
-              <span className="text-emerald-400">✓</span> कोई साइनअप फ़ॉर्म नहीं (Instant Demo)
+              <span className="text-emerald-400">✓</span> No signup form required (Instant Demo)
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="text-emerald-400">✓</span> मोबाइल ब्राउज़र में तुरंत चालू
+              <span className="text-emerald-400">✓</span> Works directly in your mobile browser
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="text-emerald-400">✓</span> 100% डेटा सुरक्षा व पूर्ण नियंत्रण
+              <span className="text-emerald-400">✓</span> Private store data (Row-Level Security)
             </span>
           </div>
         </div>

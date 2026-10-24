@@ -35,7 +35,7 @@ export function AppHeader({ shopName, userEmail, istDateString }: AppHeaderProps
               DukaanAI
             </Link>
             <span className="text-[10px] font-semibold text-primary/80 rounded-full bg-primary/10 px-2 py-0.5">
-              किराना
+              Kirana
             </span>
             {istDateString && (
               <span className="text-[10px] text-muted-foreground hidden sm:inline ml-1 font-medium">
@@ -48,7 +48,7 @@ export function AppHeader({ shopName, userEmail, istDateString }: AppHeaderProps
               {shopName}
             </span>
           ) : (
-            <span className="text-xs text-muted-foreground">दुकान खाता</span>
+            <span className="text-xs text-muted-foreground">Store Ledger</span>
           )}
         </div>
 
@@ -65,7 +65,7 @@ export function AppHeader({ shopName, userEmail, istDateString }: AppHeaderProps
             disabled={isPending}
             className="text-xs font-semibold text-muted-foreground hover:text-destructive px-2.5 py-1.5 rounded-lg border border-border/80 hover:bg-destructive/5 transition-colors min-h-[36px] flex items-center justify-center cursor-pointer disabled:opacity-50"
           >
-            {isPending ? "..." : "लॉग आउट"}
+            {isPending ? "..." : "Sign Out"}
           </button>
         </div>
       </div>
@@ -83,7 +83,7 @@ export function AppHeaderSkeleton() {
               DukaanAI
             </span>
             <span className="text-[10px] font-semibold text-primary/80 rounded-full bg-primary/10 px-2 py-0.5">
-              किराना
+              Kirana
             </span>
           </div>
           <div className="h-3 w-28 bg-muted/40 animate-pulse rounded" />

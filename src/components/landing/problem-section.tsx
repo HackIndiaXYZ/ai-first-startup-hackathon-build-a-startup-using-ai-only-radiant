@@ -3,33 +3,33 @@
 export function ProblemSection() {
   const problems = [
     {
-      badge: "समस्या 01",
+      badge: "Problem 01",
       icon: "📓",
-      title: "कागज़ की डायरी और खोया हिसाब",
-      subtitle: "Lost & Damaged Notebooks",
+      title: "Lost & Damaged Paper Notebooks",
+      subtitle: "Bahi-khata Vulnerability",
       description:
-        "चाय के दाग, फटे हुए पन्ने या डायरी का खो जाना — सालों की मेहनत और ग्राहकों का उधारी हिसाब एक झटके में गायब हो जाता है।",
-      impact: "कागज़ खोने से औसतन 10% उधारी कभी वापस नहीं मिलती",
+        "Tea stains, torn pages, or misplaced notebooks — years of customer trust and credit records can vanish in an instant without a backup.",
+      impact: "Lost paper notebooks risk unrecovered credit (illustrative estimate)",
       color: "from-rose-500/10 to-orange-500/10 border-rose-500/20",
     },
     {
-      badge: "समस्या 02",
+      badge: "Problem 02",
       icon: "💸",
-      title: "भूला हुआ फंसा उधार",
-      subtitle: "Forgotten Money & Delayed Dues",
+      title: "Forgotten Udhar & Delayed Payments",
+      subtitle: "Untracked Customer Credit",
       description:
-        "व्यस्त काउंटर पर लिखना भूल गए, या ग्राहक को समय पर याद दिलाना संकोच का काम लगा। बिना तगादे के उधारी हफ्तों महीनों अटकी रहती है।",
-      impact: "किराना दुकान का ₹20,000–₹50,000 हर महीने अटका रहता है",
+        "When counters get busy, entries get missed. Asking customers for overdue payments in person feels awkward without polite written reminders.",
+      impact: "Untracked credit ties up critical working capital (illustrative estimate)",
       color: "from-amber-500/10 to-yellow-500/10 border-amber-500/20",
     },
     {
-      badge: "समस्या 03",
+      badge: "Problem 03",
       icon: "📱",
-      title: "कठिन अंग्रेज़ी अकाउंटिंग ऐप्स",
-      subtitle: "Complex English Software",
+      title: "Complex Accounting Software",
+      subtitle: "English Forms & Menus",
       description:
-        "मुनीमों के लिए बने भारी-भरकम ऐप्स जिनमें 10 मेनू और अंग्रेज़ी फॉर्म्स होते हैं। काउंटर पर खड़े ग्राहक को छोड़कर कोई फॉर्म नहीं भर सकता।",
-      impact: "90% दुकानदार जटिल ऐप्स डाउनलोड करके छोड़ देते हैं",
+        "Heavy desktop software with dozens of dropdowns and English-only menus doesn't work while customers are standing at the counter.",
+      impact: "Most shopkeepers abandon complex software with tedious multi-step forms",
       color: "from-violet-500/10 to-indigo-500/10 border-violet-500/20",
     },
   ];
@@ -43,16 +43,16 @@ export function ProblemSection() {
         {/* Section Header with clamp() fluid scaling */}
         <div data-reveal-header className="flex flex-col items-center text-center gap-3 max-w-2xl mx-auto mb-14 sm:mb-16">
           <span className="text-xs font-bold tracking-wider uppercase text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3.5 py-1 rounded-full">
-            दुकानदारों की असली सच्चाई (The Problem)
+            The Problem
           </span>
           <h2 className="text-[clamp(1.65rem,3.2vw+0.6rem,2.75rem)] font-black text-white tracking-tight">
-            कागज़ी बहीखाते की{" "}
+            The 3 Big Challenges of{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-amber-300 to-rose-400">
-              3 बड़ी मुश्किलें
+              Paper Ledger Notebooks
             </span>
           </h2>
           <p className="text-[clamp(0.95rem,1vw+0.65rem,1.125rem)] text-white/70">
-            लाखों किराना स्टोर आज भी पुरानी डायरियों पर निर्भर हैं। जानिए क्यों यह आपकी दुकान के मुनाफे को धीमा कर रहा है:
+            Millions of Indian kirana stores still rely on physical bahi-khata notebooks. Here is why manual bookkeeping slows down daily shop operations:
           </p>
         </div>
 
@@ -102,10 +102,10 @@ export function ProblemSection() {
             <span className="text-2xl">💡</span>
             <div>
               <p className="text-sm sm:text-base font-bold text-white">
-                समाधान: ना टाइपिंग, ना कोई जटिल फॉर्म।
+                The Solution: No typing, no complicated forms.
               </p>
               <p className="text-xs text-white/60">
-                DukaanAI आपकी देसी बोलचाल समझता है और 2 सेकंड में बहीखाता अपडेट करता है।
+                DukaanAI understands natural Hinglish speech and prepares a confirmation card in usually a few seconds.
               </p>
             </div>
           </div>
@@ -113,7 +113,7 @@ export function ProblemSection() {
             href="#workflow"
             className="text-xs font-bold text-violet-300 hover:text-white bg-violet-600/20 hover:bg-violet-600/30 px-4 py-2.5 rounded-xl border border-violet-500/30 transition-colors whitespace-nowrap min-h-[40px] flex items-center"
           >
-            काम करने का तरीका देखें →
+            See how it works →
           </a>
         </div>
       </div>

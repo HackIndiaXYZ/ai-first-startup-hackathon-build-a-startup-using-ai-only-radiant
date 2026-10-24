@@ -105,8 +105,7 @@ export function AppNav() {
         }`}
       >
         <HomeIcon className="w-5 h-5 mb-0.5" />
-        <span className="text-[11px] leading-tight">होम</span>
-        <span className="text-[9px] leading-tight text-muted-foreground/80">Home</span>
+        <span className="text-[11px] leading-tight font-medium">Home</span>
       </Link>
 
       <Link
@@ -120,8 +119,7 @@ export function AppNav() {
         }`}
       >
         <BookOpenIcon className="w-5 h-5 mb-0.5" />
-        <span className="text-[11px] leading-tight">खाता</span>
-        <span className="text-[9px] leading-tight text-muted-foreground/80">Ledger</span>
+        <span className="text-[11px] leading-tight font-medium">Ledger</span>
       </Link>
 
       <Link
@@ -135,8 +133,7 @@ export function AppNav() {
         }`}
       >
         <PackageIcon className="w-5 h-5 mb-0.5" />
-        <span className="text-[11px] leading-tight">स्टॉक</span>
-        <span className="text-[9px] leading-tight text-muted-foreground/80">Stock</span>
+        <span className="text-[11px] leading-tight font-medium">Stock</span>
       </Link>
 
       <Link
@@ -150,8 +147,7 @@ export function AppNav() {
         }`}
       >
         <SettingsIcon className="w-5 h-5 mb-0.5" />
-        <span className="text-[11px] leading-tight">सेटिंग्स</span>
-        <span className="text-[9px] leading-tight text-muted-foreground/80">Settings</span>
+        <span className="text-[11px] leading-tight font-medium">Settings</span>
       </Link>
     </nav>
   );
@@ -171,7 +167,7 @@ export function AppSidebar() {
       aria-label="Desktop sidebar navigation"
     >
       <div className="px-3 pb-2 flex flex-col">
-        <span className="text-xs font-bold text-foreground uppercase tracking-wider">दुकान मेनू</span>
+        <span className="text-xs font-bold text-foreground uppercase tracking-wider">Shop Menu</span>
         <span className="text-[10px] font-medium text-muted-foreground">Store Navigation</span>
       </div>
 
@@ -186,10 +182,7 @@ export function AppSidebar() {
         }`}
       >
         <HomeIcon className="w-5 h-5 shrink-0" />
-        <div className="flex flex-col">
-          <span className="leading-tight text-sm font-bold">होम</span>
-          <span className="text-[11px] font-medium text-muted-foreground">Home</span>
-        </div>
+        <span className="leading-tight text-sm font-bold">Home</span>
       </Link>
 
       <Link
@@ -203,10 +196,7 @@ export function AppSidebar() {
         }`}
       >
         <BookOpenIcon className="w-5 h-5 shrink-0" />
-        <div className="flex flex-col">
-          <span className="leading-tight text-sm font-bold">खाता बही</span>
-          <span className="text-[11px] font-medium text-muted-foreground">Customer Ledger</span>
-        </div>
+        <span className="leading-tight text-sm font-bold">Ledger</span>
       </Link>
 
       <Link
@@ -220,10 +210,7 @@ export function AppSidebar() {
         }`}
       >
         <PackageIcon className="w-5 h-5 shrink-0" />
-        <div className="flex flex-col">
-          <span className="leading-tight text-sm font-bold">स्टॉक</span>
-          <span className="text-[11px] font-medium text-muted-foreground">Stock & Inventory</span>
-        </div>
+        <span className="leading-tight text-sm font-bold">Stock</span>
       </Link>
 
       <Link
@@ -237,10 +224,7 @@ export function AppSidebar() {
         }`}
       >
         <SettingsIcon className="w-5 h-5 shrink-0" />
-        <div className="flex flex-col">
-          <span className="leading-tight text-sm font-bold">सेटिंग्स</span>
-          <span className="text-[11px] font-medium text-muted-foreground">Settings</span>
-        </div>
+        <span className="leading-tight text-sm font-bold">Settings</span>
       </Link>
     </nav>
   );

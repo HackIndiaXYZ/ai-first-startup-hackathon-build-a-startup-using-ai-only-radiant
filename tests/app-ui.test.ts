@@ -27,7 +27,7 @@ describe("Tier 1 UI (/app) & Demo Auth Visitor Safety", () => {
       const content = fs.readFileSync(routePath, "utf-8");
       assert.match(content, /CONNECTION_ERROR/);
       assert.match(content, /DEMO_UNAVAILABLE/);
-      assert.match(content, /डेमो खाता अस्थायी रूप से अनुपलब्ध है/);
+      assert.match(content, /Demo account is temporarily unavailable/i);
     });
 
     it("should redirect GET requests to /app upon success", () => {
@@ -66,7 +66,7 @@ describe("Tier 1 UI (/app) & Demo Auth Visitor Safety", () => {
       const cardPath = path.resolve(__dirname, "../src/components/confirmation-card.tsx");
       const content = fs.readFileSync(cardPath, "utf-8");
       assert.match(content, /lowConfidence|isLowConfidence/);
-      assert.match(content, /आत्मविश्वास कम है/);
+      assert.match(content, /Low Confidence/i);
     });
 
     it("should re-run customer matching when user edits customer name", () => {
@@ -93,7 +93,7 @@ describe("Tier 1 UI (/app) & Demo Auth Visitor Safety", () => {
     it("should display updated udhar balance on confirmation success", () => {
       const cardPath = path.resolve(__dirname, "../src/components/confirmation-card.tsx");
       const content = fs.readFileSync(cardPath, "utf-8");
-      assert.match(content, /नया बकाया|नया उधार बैलेंस/);
+      assert.match(content, /New Balance|STRINGS\.confirmation\.newBalance/);
       assert.match(content, /confirmedResult\.customer\?\.balance/);
     });
   });
@@ -119,7 +119,7 @@ describe("Tier 1 UI (/app) & Demo Auth Visitor Safety", () => {
       assert.match(content, /Taking longer than usual/i);
       assert.match(content, /30000/);
       assert.match(content, /controller\.abort\(\)/);
-      assert.match(content, /पुनः प्रयास करें \(Retry\)/);
+      assert.match(content, /Retry/);
     });
 
     it("should fall back to en-IN strictly on language-not-supported error", () => {

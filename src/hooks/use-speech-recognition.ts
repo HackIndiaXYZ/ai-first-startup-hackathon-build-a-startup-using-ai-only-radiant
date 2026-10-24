@@ -56,6 +56,8 @@ function getSpeechSupportClient(): boolean {
   );
 }
 
+export const SPEECH_LANG = "en-IN";
+
 export function useSpeechRecognition(options?: { onEnd?: (transcript: string) => void }) {
   const isSupported = useSyncExternalStore(
     emptySubscribe,
@@ -69,7 +71,7 @@ export function useSpeechRecognition(options?: { onEnd?: (transcript: string) =>
   const [error, setError] = useState<string | null>(null);
 
   const recognitionRef = useRef<IWindowSpeechRecognition | null>(null);
-  const langRef = useRef<string>("hi-IN");
+  const langRef = useRef<string>(SPEECH_LANG);
   const transcriptRef = useRef<string>("");
   const onEndRef = useRef<((transcript: string) => void) | undefined>(options?.onEnd);
 
@@ -123,16 +125,15 @@ export function useSpeechRecognition(options?: { onEnd?: (transcript: string) =>
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.warn("Speech recognition error:", event.error);
-        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-          setError("माइक्रोफ़ोन अनुमति अस्वीकृत (Microphone permission denied)");
-        } else if (event.error === "language-not-supported" && langRef.current === "hi-IN") {
-          // Fallback to en-IN if hi-IN is not supported on this device
+        if (event.error === "language-not-supported") {
           langRef.current = "en-IN";
-          if (recognitionRef.current) {
-            recognitionRef.current.lang = "en-IN";
-          }
+          if (recognitionRef.current) recognitionRef.current.lang = "en-IN";
+          return;
+        }
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          setError("Microphone permission denied");
         } else if (event.error !== "aborted" && event.error !== "no-speech") {
-          setError(`आवाज़ इनपुट त्रुटि: ${event.error} (Speech error: ${event.error})`);
+          setError(`Speech input error: ${event.error}`);
         }
       };
 

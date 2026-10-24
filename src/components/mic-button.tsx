@@ -75,8 +75,8 @@ export function MicButton({
         aria-pressed={listening}
         aria-label={
           listening
-            ? "सुन रहा है... रोकने के लिए टैप करें (Listening... tap to stop)"
-            : "बोलने के लिए टैप करें (Tap to speak)"
+            ? "Listening... tap to stop"
+            : "Tap to speak"
         }
         whileTap={shouldReduceMotion ? undefined : { scale: 0.93 }}
         transition={{ type: "spring", stiffness: 400, damping: 22 }}

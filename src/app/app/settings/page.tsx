@@ -68,10 +68,10 @@ export default function SettingsPage() {
     <main className="flex flex-col gap-5 px-4 py-5 animate-in fade-in duration-200">
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-extrabold tracking-tight text-foreground">
-          सेटिंग्स (Settings)
+          Settings
         </h1>
         <p className="text-xs text-muted-foreground">
-          दुकान प्रोफ़ाइल एवं खाता प्रबंधन
+          Shop profile and account management
         </p>
       </div>
 
@@ -85,14 +85,14 @@ export default function SettingsPage() {
           {/* ── Shop Info Card ── */}
           <section className="flex flex-col gap-3 rounded-2xl bg-card border border-border p-4 shadow-sm">
             <h2 className="text-sm font-bold text-foreground">
-              दुकान की जानकारी (Shop Profile)
+              Shop Profile
             </h2>
 
             <div className="flex flex-col gap-2 text-xs">
               <div className="flex items-center justify-between py-1 border-b border-border/40">
-                <span className="text-muted-foreground">दुकान का नाम:</span>
+                <span className="text-muted-foreground">Shop Name:</span>
                 <span className="font-bold text-foreground">
-                  {shop?.name || "मेरी दुकान / My Dukaan"}
+                  {shop?.name || "My Dukaan"}
                 </span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-border/40">
@@ -102,8 +102,8 @@ export default function SettingsPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-muted-foreground">प्राथमिक भाषा:</span>
-                <span className="font-medium text-foreground">हिंदी / Hinglish</span>
+                <span className="text-muted-foreground">Primary Language:</span>
+                <span className="font-medium text-foreground">Hindi / Hinglish (Roman)</span>
               </div>
             </div>
           </section>
@@ -111,20 +111,20 @@ export default function SettingsPage() {
           {/* ── Account Card ── */}
           <section className="flex flex-col gap-3 rounded-2xl bg-card border border-border p-4 shadow-sm">
             <h2 className="text-sm font-bold text-foreground">
-              उपयोगकर्ता खाता (Account)
+              Account Details
             </h2>
 
             <div className="flex flex-col gap-2 text-xs">
               <div className="flex items-center justify-between py-1 border-b border-border/40">
-                <span className="text-muted-foreground">लॉगिन ईमेल:</span>
+                <span className="text-muted-foreground">Sign-in Email:</span>
                 <span className="font-semibold text-foreground">
                   {userEmail || "demo@dukaanai.in"}
                 </span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-muted-foreground">खाता प्रकार:</span>
+                <span className="text-muted-foreground">Account Type:</span>
                 <span className="font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full text-[11px]">
-                  {isDemo ? "डेमो खाता (Demo Account)" : "Google खाता (Google Account)"}
+                  {isDemo ? "Demo Account" : "Google Account"}
                 </span>
               </div>
             </div>
@@ -136,7 +136,7 @@ export default function SettingsPage() {
               disabled={isPending}
               className="mt-2 w-full flex items-center justify-center py-3 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-bold transition-all min-h-[48px] cursor-pointer disabled:opacity-50"
             >
-              {isPending ? "लॉग आउट हो रहा है..." : "लॉग आउट करें (Sign Out)"}
+              {isPending ? "Signing out..." : "Sign Out"}
             </button>
           </section>
 
@@ -144,7 +144,7 @@ export default function SettingsPage() {
           <div className="text-center text-xs text-muted-foreground pt-4 flex flex-col gap-1">
             <p className="font-bold text-foreground">DukaanAI v0.1.0 Beta</p>
             <p className="italic">
-              &quot;अपनी दुकान से बात करें। DukaanAI रखेगा पूरा हिसाब।&quot;
+              &quot;Talk to your shop. DukaanAI keeps the books.&quot;
             </p>
             <p className="text-[10px] text-muted-foreground/70">
               Built for HackIndia 2026 AI-First Startup Hackathon

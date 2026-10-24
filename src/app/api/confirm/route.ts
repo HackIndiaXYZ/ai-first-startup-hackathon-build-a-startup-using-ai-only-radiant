@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
           total,
           paid,
           items: Array.isArray(mergedData.items) ? mergedData.items : [],
-          summary: mergedData.summary ? String(mergedData.summary) : "बिक्री",
+          summary: mergedData.summary ? String(mergedData.summary) : "Sale",
           confidence: typeof mergedData.confidence === "number" ? mergedData.confidence : 1.0,
           create_customer: Boolean(mergedData.create_customer),
         };
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
           action: "record_payment",
           customer,
           amount,
-          summary: mergedData.summary ? String(mergedData.summary) : `${customer} ने ₹${amount} जमा किए`,
+          summary: mergedData.summary ? String(mergedData.summary) : `${customer} paid Rs ${amount}`,
           confidence: 1.0,
         };
         break;
@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
           product,
           qty_change,
           unit: mergedData.unit ? String(mergedData.unit) : undefined,
-          summary: mergedData.summary ? String(mergedData.summary) : `${product}: स्टॉक अपडेट`,
+          summary: mergedData.summary ? String(mergedData.summary) : `${product}: stock updated`,
           confidence: 1.0,
         };
         break;
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
           name,
           phone: mergedData.phone ? String(mergedData.phone).trim() : null,
           notes: mergedData.notes ? String(mergedData.notes).trim() : null,
-          summary: mergedData.summary ? String(mergedData.summary) : `नया ग्राहक: ${name}`,
+          summary: mergedData.summary ? String(mergedData.summary) : `New customer: ${name}`,
           confidence: 1.0,
         };
         break;

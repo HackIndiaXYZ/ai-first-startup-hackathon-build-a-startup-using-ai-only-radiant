@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 const VISITOR_GENERIC_ERROR =
-  "डेमो खाता अस्थायी रूप से अनुपलब्ध है। कृपया कुछ समय बाद पुनः प्रयास करें। (Demo access is temporarily unavailable. Please try again shortly.)";
+  "Demo account is temporarily unavailable. Please try again shortly.";
 const VISITOR_CONNECTION_ERROR =
-  "सर्वर से संपर्क नहीं हो सका। कृपया अपना इंटरनेट कनेक्शन जांचें। (Unable to connect to service. Please check your connection.)";
+  "Unable to connect to service. Please check your connection.";
 
 function handleDemoError(error: unknown, context: string): { visitorMessage: string; code: string } {
   const errMsg = error instanceof Error ? error.message : String(error);
