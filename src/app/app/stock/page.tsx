@@ -6,6 +6,11 @@ import { useSearchParams } from "next/navigation";
 import { Package, Search, AlertTriangle, CheckCircle2, ArrowLeft, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { generateIdempotencyKey, formatApiError } from "@/lib/confirm-helpers";
+import {
+  calculateSuggestedReorderQty,
+  buildSupplierReorderMessage,
+  buildWhatsAppReorderLink,
+} from "@/lib/reorder-helper";
 import { STRINGS } from "@/lib/strings";
 
 interface ProductItem {
@@ -35,12 +40,20 @@ function StockContent() {
   // Add product form state
   const searchParams = useSearchParams();
   const [isAddingProduct, setIsAddingProduct] = useState(() => searchParams?.get("add") === "true");
-  const [newProductName, setNewProductName] = useState("");
+  const [newProductName, setNewProductName] = useState(() => searchParams?.get("name") || "");
   const [newProductUnit, setNewProductUnit] = useState("packet");
   const [newProductPrice, setNewProductPrice] = useState("");
   const [newProductStock, setNewProductStock] = useState("");
   const [newProductReorder, setNewProductReorder] = useState("5");
   const [isSubmittingNewProduct, setIsSubmittingNewProduct] = useState(false);
+
+  // One-tap restock and Reorder list modal state
+  const [shopName, setShopName] = useState<string>("My Dukaan");
+  const [restockingId, setRestockingId] = useState<string | null>(null);
+  const [isReorderModalOpen, setIsReorderModalOpen] = useState(false);
+  const [supplierPhone, setSupplierPhone] = useState("");
+  const [reorderMessage, setReorderMessage] = useState("");
+  const [isMessageCopied, setIsMessageCopied] = useState(false);
 
   const loadProducts = useCallback(async (showLoading = false) => {
     if (showLoading) setIsLoading(true);
@@ -60,9 +73,13 @@ function StockContent() {
 
       let { data: shop } = await supabase
         .from("shops")
-        .select("id")
+        .select("id, name")
         .eq("owner_id", user.id)
         .maybeSingle();
+
+      if (shop?.name) {
+        setShopName(shop.name);
+      }
 
       if (!shop) {
         // Safe fallback: insert default shop if user has no shop yet
@@ -73,7 +90,7 @@ function StockContent() {
             name: "My Dukaan",
             language: "hi",
           })
-          .select("id")
+          .select("id, name")
           .single();
         if (newShop) {
           shop = newShop;
@@ -204,6 +221,56 @@ function StockContent() {
     } finally {
       setIsSubmittingAdjust(false);
     }
+  };
+
+  const handleOneTapRestock = async (product: ProductItem) => {
+    const suggestedQty = calculateSuggestedReorderQty(product.stock_qty, product.reorder_level);
+    setRestockingId(product.id);
+    setErrorMsg(null);
+
+    try {
+      const idempotencyKey = generateIdempotencyKey();
+      const res = await fetch("/api/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idempotency_key: idempotencyKey,
+          action: "adjust_stock",
+          data: {
+            product: product.name,
+            qty_change: suggestedQty,
+          },
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        setErrorMsg(formatApiError(json));
+      } else {
+        setSuccessMsg(
+          `${product.name} restocked (+${suggestedQty} ${product.unit}).`
+        );
+        await loadProducts(false);
+        setTimeout(() => setSuccessMsg(null), 4000);
+      }
+    } catch (err: unknown) {
+      setErrorMsg(formatApiError(err));
+    } finally {
+      setRestockingId(null);
+    }
+  };
+
+  const handleOpenReorderModal = () => {
+    const lowItems = products.filter((p) => p.stock_qty <= p.reorder_level);
+    const lowWithSuggested = lowItems.map((p) => ({
+      name: p.name,
+      currentStock: p.stock_qty,
+      suggestedQty: calculateSuggestedReorderQty(p.stock_qty, p.reorder_level),
+      unit: p.unit,
+    }));
+
+    setReorderMessage(buildSupplierReorderMessage(shopName, lowWithSuggested));
+    setIsReorderModalOpen(true);
   };
 
   const handleCreateProductSubmit = async (e: React.FormEvent) => {
@@ -406,8 +473,104 @@ function StockContent() {
             <span className="text-2xl font-extrabold tabular-nums mt-1">
               {lowStockCount}
             </span>
+            {lowStockCount > 0 && (
+              <button
+                type="button"
+                id="btn-reorder-list"
+                onClick={handleOpenReorderModal}
+                className="mt-2 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs font-bold cursor-pointer transition-all flex items-center gap-1 shadow-xs"
+              >
+                <span>📋 Reorder list ({lowStockCount})</span>
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Reorder List Supplier Message Drawer / Card */}
+        {isReorderModalOpen && (
+          <div
+            id="reorder-list-modal"
+            className="p-4 sm:p-5 rounded-2xl bg-card border-2 border-primary/40 shadow-lg flex flex-col gap-3.5 animate-in fade-in duration-150"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📋</span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-foreground">
+                    Supplier Reorder List
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    Suggested order quantities calculated as max(2*reorder - stock, reorder).
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                id="btn-close-reorder-modal"
+                onClick={() => setIsReorderModalOpen(false)}
+                className="text-xs text-muted-foreground hover:text-foreground cursor-pointer px-2 py-1 rounded-md hover:bg-muted"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="reorder-message-text" className="text-xs font-semibold text-foreground">
+                Supplier Message (Roman-Hinglish, editable):
+              </label>
+              <textarea
+                id="reorder-message-text"
+                rows={7}
+                value={reorderMessage}
+                onChange={(e) => setReorderMessage(e.target.value)}
+                className="w-full p-3 text-xs sm:text-sm font-mono rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none resize-y leading-relaxed text-foreground"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
+              <div className="flex flex-col gap-1 flex-1">
+                <label htmlFor="supplier-phone-input" className="text-[11px] font-semibold text-muted-foreground">
+                  Supplier WhatsApp Phone (optional):
+                </label>
+                <input
+                  id="supplier-phone-input"
+                  type="tel"
+                  placeholder="e.g. 9876543210 or +91..."
+                  value={supplierPhone}
+                  onChange={(e) => setSupplierPhone(e.target.value)}
+                  className="px-3 py-2 text-xs rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[44px]"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 sm:self-end">
+                <a
+                  id="btn-send-reorder-whatsapp"
+                  href={buildWhatsAppReorderLink(supplierPhone, reorderMessage)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs min-h-[44px] cursor-pointer active:scale-98 transition-all"
+                >
+                  <span>📲</span>
+                  <span>Send on WhatsApp</span>
+                </a>
+
+                <button
+                  type="button"
+                  id="btn-copy-reorder-message"
+                  onClick={() => {
+                    navigator.clipboard.writeText(reorderMessage);
+                    setIsMessageCopied(true);
+                    setTimeout(() => setIsMessageCopied(false), 2500);
+                  }}
+                  className="px-3.5 py-2.5 rounded-xl border border-border bg-background hover:bg-muted text-xs font-semibold text-foreground min-h-[44px] cursor-pointer"
+                >
+                  {isMessageCopied ? "✓ Copied" : "Copy text"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Add Product Form (Collapsible Card) */}
         {isAddingProduct && (
@@ -790,6 +953,22 @@ function StockContent() {
                         {STRINGS.stock.currentStock}
                       </span>
                     </div>
+
+                    {isLow && (
+                      <button
+                        type="button"
+                        id={`btn-restock-${product.id}`}
+                        onClick={() => handleOneTapRestock(product)}
+                        disabled={restockingId === product.id}
+                        className="px-3 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold min-h-[44px] cursor-pointer transition-all shadow-2xs flex items-center gap-1"
+                      >
+                        {restockingId === product.id ? (
+                          <span>Restocking...</span>
+                        ) : (
+                          <span>+ Restock ({calculateSuggestedReorderQty(product.stock_qty, product.reorder_level)})</span>
+                        )}
+                      </button>
+                    )}
 
                     <button
                       type="button"

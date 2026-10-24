@@ -204,12 +204,12 @@ export async function executeLedgerEntry(
   const productStockMap: Record<string, number> = {};
   const productEntityMap: Record<
     string,
-    { id: string; name: string; stock_qty: number; price: number; unit: string }
+    { id: string; name: string; stock_qty: number; price: number; unit: string; reorder_level: number }
   > = {};
 
   const { data: productsData } = await supabase
     .from("products")
-    .select("id, name, stock_qty, price, unit")
+    .select("id, name, stock_qty, price, unit, reorder_level")
     .eq("shop_id", shopId);
 
   if (productsData) {
@@ -221,6 +221,7 @@ export async function executeLedgerEntry(
         stock_qty: Number(p.stock_qty),
         price: Number(p.price),
         unit: p.unit,
+        reorder_level: Number(p.reorder_level || 5),
       };
     }
   }
@@ -251,7 +252,11 @@ export async function executeLedgerEntry(
 
     if (action.items && action.items.length > 0) {
       rpcPayload.items = action.items.map((it) => {
-        const matchedProd = productEntityMap[it.product.toLowerCase()];
+        const itemObj = it as { product: string; product_id?: string; qty: number; unit_price?: number };
+        const matchedProd = itemObj.product_id
+          ? productsData?.find((p) => p.id === itemObj.product_id)
+          : productEntityMap[it.product.toLowerCase()];
+
         return {
           product: it.product,
           product_id: matchedProd?.id,
@@ -304,21 +309,100 @@ export async function executeLedgerEntry(
     throw new Error("Ledger transaction failed to process.");
   }
 
-  return {
-    success: true,
-    action: action.action,
-    transaction_id: rpcResult.transaction_id,
-    idempotent: Boolean(rpcResult.idempotent),
-    customer: rpcResult.customer_id
-      ? {
-          id: rpcResult.customer_id,
-          name: resolvedCustomer?.name || targetCustomerName,
-          balance: Number(rpcResult.customer_balance || 0),
+    // Extract or compute stock updates and identify low stock products
+    const stockUpdates: Array<{
+      product_id: string;
+      name: string;
+      old_stock: number;
+      new_stock: number;
+      reorder_level?: number;
+      is_low_stock?: boolean;
+    }> = [];
+
+    const lowStockProducts: Array<{
+      product_id: string;
+      name: string;
+      current_stock: number;
+      reorder_level: number;
+    }> = [];
+
+    if (Array.isArray(rpcResult.stock_updates) && rpcResult.stock_updates.length > 0) {
+      for (const su of rpcResult.stock_updates) {
+        const oldStock = Number(su.old_stock);
+        const newStock = Number(su.new_stock);
+        const reorderLevel = Number(su.reorder_level || 5);
+        const isLow = Boolean(su.is_low_stock) || newStock <= reorderLevel;
+
+        stockUpdates.push({
+          product_id: su.product_id,
+          name: su.name,
+          old_stock: oldStock,
+          new_stock: newStock,
+          reorder_level: reorderLevel,
+          is_low_stock: isLow,
+        });
+
+        if (isLow) {
+          lowStockProducts.push({
+            product_id: su.product_id,
+            name: su.name,
+            current_stock: newStock,
+            reorder_level: reorderLevel,
+          });
         }
-      : undefined,
-    unmatched_items: Array.isArray(rpcResult.unmatched_items) && rpcResult.unmatched_items.length > 0
-      ? rpcResult.unmatched_items
-      : undefined,
-    summary: action.summary,
-  };
-}
+      }
+    } else if (action.action === "add_sale" && action.items) {
+      // Local fallback calculation when RPC does not return stock_updates array
+      for (const item of action.items) {
+        const itemObj = item as { product: string; product_id?: string; qty: number };
+        const matchedProd = itemObj.product_id
+          ? productsData?.find((p) => p.id === itemObj.product_id)
+          : productEntityMap[item.product.toLowerCase()];
+
+        if (matchedProd) {
+          const oldStock = Number(matchedProd.stock_qty);
+          const newStock = oldStock - item.qty;
+          const reorderLevel = Number(matchedProd.reorder_level || 5);
+          const isLow = newStock <= reorderLevel;
+
+          stockUpdates.push({
+            product_id: matchedProd.id,
+            name: matchedProd.name,
+            old_stock: oldStock,
+            new_stock: newStock,
+            reorder_level: reorderLevel,
+            is_low_stock: isLow,
+          });
+
+          if (isLow) {
+            lowStockProducts.push({
+              product_id: matchedProd.id,
+              name: matchedProd.name,
+              current_stock: newStock,
+              reorder_level: reorderLevel,
+            });
+          }
+        }
+      }
+    }
+
+    return {
+      success: true,
+      action: action.action,
+      transaction_id: rpcResult.transaction_id,
+      idempotent: Boolean(rpcResult.idempotent),
+      customer: rpcResult.customer_id
+        ? {
+            id: rpcResult.customer_id,
+            name: resolvedCustomer?.name || targetCustomerName,
+            balance: Number(rpcResult.customer_balance || 0),
+          }
+        : undefined,
+      stock_updates: stockUpdates.length > 0 ? stockUpdates : undefined,
+      low_stock_products: lowStockProducts.length > 0 ? lowStockProducts : undefined,
+      unmatched_items: Array.isArray(rpcResult.unmatched_items) && rpcResult.unmatched_items.length > 0
+        ? rpcResult.unmatched_items
+        : undefined,
+      summary: action.summary,
+    };
+  }

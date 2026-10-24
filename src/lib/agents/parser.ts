@@ -110,10 +110,20 @@ export function transliterateDevanagari(input: string): string {
 export function buildDeterministicSaleSummary(
   customer: string | null,
   total: number,
-  paid: number
+  paid: number,
+  items?: Array<{ product: string; qty: number; unit?: string }>
 ): string {
-  const udhar = Math.max(0, total - paid);
   const cleanCust = customer ? transliterateDevanagari(customer) : null;
+  const itemsText =
+    items && items.length > 0
+      ? items.map((it) => `${it.qty} ${it.unit || "unit"} ${it.product}`).join(", ")
+      : null;
+
+  if (total === 0 && itemsText) {
+    return cleanCust ? `${cleanCust}: ${itemsText}` : `Sale: ${itemsText}`;
+  }
+
+  const udhar = Math.max(0, total - paid);
   if (cleanCust) {
     if (paid === 0) {
       return `${cleanCust}: Rs ${total} purchase, full udhar`;
@@ -172,7 +182,8 @@ export const PARSER_TOOLS = [
             },
             items: {
               type: "ARRAY",
-              description: "List of items purchased if mentioned in the text",
+              description:
+                "List of items purchased if mentioned in the text (e.g. doodh, atta, chini, tel, namak). When multiple items are mentioned in one sentence, extract each as a separate item.",
               items: {
                 type: "OBJECT",
                 properties: {
@@ -182,7 +193,8 @@ export const PARSER_TOOLS = [
                   },
                   qty: {
                     type: "NUMBER",
-                    description: "Numeric quantity purchased",
+                    description:
+                      "Numeric quantity purchased (e.g. 2 for 'do packet', 0.5 for 'aadha kilo', 1.5 for 'dedh kilo', 2.5 for 'dhai kilo', 12 for 'ek dozen')",
                   },
                   unit: {
                     type: "STRING",
@@ -202,7 +214,8 @@ export const PARSER_TOOLS = [
             },
             total: {
               type: "NUMBER",
-              description: "Total sale amount in Indian Rupees. Mandatory.",
+              description:
+                "Total sale amount in Indian Rupees if spoken or known. If not mentioned in speech, set total = 0.",
             },
             paid: {
               type: "NUMBER",
@@ -219,7 +232,7 @@ export const PARSER_TOOLS = [
                 "Clear, concise one-line summary in simple English using Roman script only (e.g. 'Ramesh: Rs 500 purchase, Rs 200 cash, Rs 300 udhar'). Do NOT use Devanagari script.",
             },
           },
-          required: ["total", "confidence", "summary"],
+          required: ["confidence", "summary"],
         },
       },
       {
@@ -351,6 +364,20 @@ Understanding Hindi/Hinglish Numbers & Terms:
   - "dedh hazaar" = 1500
   - "do hazaar" = 2000
   - "saath" = 60, "sattar" = 70, "assi" = 80, "nabbe" = 90
+- Item & Quantity Extraction for add_sale:
+  - When specific grocery items are mentioned, ALWAYS extract them into the "items" array: [{product, qty, unit}].
+  - Several items in a single sentence MUST be parsed into separate array objects. Example: "do packet doodh aur ek packet atta" -> two items: [{product: "doodh", qty: 2, unit: "packet"}, {product: "atta", qty: 1, unit: "packet"}].
+  - Hinglish quantity phrases:
+    - "aadha kilo" / "aadha" = 0.5 (unit = "kg")
+    - "ek pao" / "pao" = 0.25 (unit = "kg")
+    - "dedh kilo" / "dedh" = 1.5 (unit = "kg")
+    - "dhai kilo" / "dhai" = 2.5 (unit = "kg")
+    - "ek dozen" = 12 (unit = "piece") or qty = 1, unit = "dozen"
+    - "do dozen" = 24 (unit = "piece") or qty = 2, unit = "dozen"
+    - "ek packet" = 1, "do packet" = 2, "teen packet" = 3
+    - "ek litre" = 1, "do litre" = 2
+  - Sales with ONLY a total amount stay valid with items = []. Example: "Ramesh ne 500 ka saaman liya" -> items: [], total: 500.
+  - If items are spoken WITHOUT a total amount (e.g. "Ramesh ne do packet doodh aur ek packet atta liya"), set total = 0. DukaanAI will automatically compute the total from inventory prices.
 - Udhar / Credit Logic:
   - If a customer bought goods and NO paid amount is mentioned (e.g. "Ramesh ne 500 ka saaman liya", "Ramesh ne rashan liya pura udhar"), default paid = 0 (full credit/udhar).
   - If the user says "200 abhi diye" or "aadha paisa diya", set paid accordingly.
@@ -422,10 +449,8 @@ export async function parseShopkeeperInput(
 
   switch (name) {
     case "add_sale": {
-      const total = Number(args.total);
-      if (isNaN(total) || total < 0) {
-        throw new Error("Invalid total sale amount parsed.");
-      }
+      const parsedTotal = args.total !== undefined && args.total !== null ? Number(args.total) : undefined;
+      const total = parsedTotal !== undefined && !isNaN(parsedTotal) ? Math.max(0, parsedTotal) : 0;
 
       let paid = typeof args.paid === "number" ? Number(args.paid) : 0;
       if (isNaN(paid) || paid < 0) paid = 0;
@@ -448,7 +473,7 @@ export async function parseShopkeeperInput(
         : [];
 
       if (!summary || containsDevanagari(summary)) {
-        summary = buildDeterministicSaleSummary(customer, total, paid);
+        summary = buildDeterministicSaleSummary(customer, total, paid, items);
       }
 
       return {

@@ -106,7 +106,60 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 7. Log call to agent_logs
+    // 7. Preview product matching and compute total if items provided
+    let productMatches = null;
+    let totalMismatchWarning: string | null = null;
+
+    if (
+      parseResult.action === "add_sale" &&
+      "items" in parseResult.data &&
+      Array.isArray(parseResult.data.items) &&
+      parseResult.data.items.length > 0
+    ) {
+      const { data: productsData } = await supabase
+        .from("products")
+        .select("id, name, unit, price, stock_qty, reorder_level")
+        .eq("shop_id", shop.id);
+
+      const productsList = (productsData || []) as Array<{
+        id: string;
+        name: string;
+        unit: string;
+        price: number;
+        stock_qty: number;
+        reorder_level: number;
+      }>;
+
+      const { findBestProductMatch } = await import("@/lib/product-matcher");
+
+      productMatches = parseResult.data.items.map((it) => {
+        const match = findBestProductMatch(it.product, productsList, it.unit);
+        return {
+          item: it,
+          match,
+        };
+      });
+
+      // Compute total from product prices if total is missing or 0
+      let computedTotal = 0;
+      let matchedCount = 0;
+      for (const pm of productMatches) {
+        if (pm.match.status === "matched" && pm.match.matched) {
+          const unitPrice = Number(pm.match.matched.price || 0);
+          computedTotal += pm.item.qty * unitPrice;
+          matchedCount++;
+        }
+      }
+
+      const spokenTotal = Number(parseResult.data.total || 0);
+      if (spokenTotal === 0 && computedTotal > 0) {
+        parseResult.data.total = computedTotal;
+      } else if (spokenTotal > 0 && computedTotal > 0 && matchedCount === parseResult.data.items.length && spokenTotal !== computedTotal) {
+        totalMismatchWarning = `Spoken total (Rs ${spokenTotal}) differs from computed items total (Rs ${computedTotal}).`;
+      }
+    }
+
+    // 8. Log call to agent_logs
     await supabase.from("agent_logs").insert({
       shop_id: shop.id,
       agent: "parser",
@@ -119,6 +172,8 @@ export async function POST(req: NextRequest) {
       success: true,
       parsed: parseResult,
       customer_match: customerMatch,
+      product_matches: productMatches,
+      total_mismatch_warning: totalMismatchWarning,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal server error occurred.";

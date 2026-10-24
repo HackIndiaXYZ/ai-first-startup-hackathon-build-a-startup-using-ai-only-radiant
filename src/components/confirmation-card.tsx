@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { LedgerExecutionResult, Customer } from "@/lib/agents/types";
 import { findBestCustomerMatch } from "@/lib/agents/customer-matcher";
+import { findBestProductMatch, checkUnitMismatch, Product } from "@/lib/product-matcher";
 import { buildConfirmPayload, formatApiError, isLowConfidence } from "@/lib/confirm-helpers";
 import { STRINGS } from "@/lib/strings";
 
@@ -36,6 +37,11 @@ export interface ParseApiResponse {
     normalizedQuery: string;
     proposedName?: string;
   } | null;
+  product_matches?: Array<{
+    item: { product: string; qty: number; unit?: string; unit_price?: number };
+    match: unknown;
+  }> | null;
+  total_mismatch_warning?: string | null;
 }
 
 interface ConfirmationCardProps {
@@ -43,10 +49,12 @@ interface ConfirmationCardProps {
   idempotencyKey: string;
   rawInput: string;
   customers?: Customer[];
+  products?: Product[];
   onCancel: () => void;
   onSuccess: (result: LedgerExecutionResult) => void;
   onDismiss?: () => void;
   onOpenQuickAddCustomer?: (name: string) => void;
+  onOpenQuickAddProduct?: (name: string, unit?: string) => void;
 }
 
 export function ConfirmationCard({
@@ -54,10 +62,12 @@ export function ConfirmationCard({
   idempotencyKey,
   rawInput,
   customers = [],
+  products = [],
   onCancel,
   onSuccess,
   onDismiss,
   onOpenQuickAddCustomer,
+  onOpenQuickAddProduct,
 }: ConfirmationCardProps) {
   const { parsed, customer_match: initialCustomerMatch } = parseResult;
   const initialAction = parsed.action;
@@ -83,11 +93,100 @@ export function ConfirmationCard({
     initialAction === "add_sale" && initialCustomerMatch?.status === "new"
   );
 
-  const [total, setTotal] = useState<number>(Number(initialData.total ?? 0));
+  const [total, setTotal] = useState<number>(() => {
+    const rawTotal = Number(initialData.total ?? 0);
+    if (rawTotal > 0) return rawTotal;
+    if (initialAction === "add_sale" && (initialData.items || []).length > 0) {
+      let sum = 0;
+      for (const it of initialData.items || []) {
+        if (it.unit_price) {
+          sum += it.qty * it.unit_price;
+        } else {
+          const match = findBestProductMatch(it.product, products, it.unit);
+          if (match?.matched?.price) {
+            sum += it.qty * match.matched.price;
+          }
+        }
+      }
+      if (sum > 0) return sum;
+    }
+    return rawTotal;
+  });
   const [paid, setPaid] = useState<number>(Number(initialData.paid ?? 0));
   const [amount, setAmount] = useState<number>(Number(initialData.amount ?? 0));
   const [product, setProduct] = useState<string>(initialData.product || "");
   const [qtyChange, setQtyChange] = useState<number>(Number(initialData.qty_change ?? 0));
+
+  // Items tracking state
+  const [items, setItems] = useState<Array<{
+    product: string;
+    qty: number;
+    unit?: string;
+    unit_price?: number;
+    selectedProductId?: string;
+  }>>(() => {
+    return (initialData.items || []).map((it) => ({
+      product: it.product,
+      qty: it.qty,
+      unit: it.unit,
+      unit_price: it.unit_price,
+    }));
+  });
+
+  const itemMatches = useMemo(() => {
+    return items.map((it) => {
+      if (it.selectedProductId) {
+        const found = products.find((p) => p.id === it.selectedProductId);
+        if (found) {
+          const unitMismatch = checkUnitMismatch(it.unit, found.unit);
+          return {
+            status: "matched" as const,
+            matched: found,
+            candidates: [{ product: found, score: 1.0 }],
+            score: 1.0,
+            originalQuery: it.product,
+            normalizedQuery: found.name,
+            unitMismatch,
+          };
+        }
+      }
+      return findBestProductMatch(it.product, products, it.unit);
+    });
+  }, [items, products]);
+
+  // Compute items total from matched product prices
+  const computedItemsTotal = useMemo(() => {
+    let sum = 0;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const match = itemMatches[i];
+      const price = it.unit_price ?? match?.matched?.price ?? 0;
+      sum += it.qty * price;
+    }
+    return sum;
+  }, [items, itemMatches]);
+
+  const hasInsufficientStock = useMemo(() => {
+    if (currentAction !== "add_sale") return false;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const match = itemMatches[i];
+      if (match?.status === "matched" && match.matched) {
+        if (match.matched.stock_qty - it.qty < 0) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }, [currentAction, items, itemMatches]);
+
+  const showTotalMismatchWarning = useMemo(() => {
+    if (currentAction !== "add_sale" || items.length === 0) return false;
+    if (computedItemsTotal > 0 && total > 0 && total !== computedItemsTotal) {
+      return true;
+    }
+    return false;
+  }, [currentAction, items.length, computedItemsTotal, total]);
 
   // Request & Execution states
   const [isSaving, setIsSaving] = useState(false);
@@ -124,8 +223,10 @@ export function ConfirmationCard({
     return customerName.trim() ? "new" : null;
   }, [selectedCustomerId, activeCustomerMatch, customerName]);
 
-  // Validation: Never send an unmatched edited name
+  // Validation: Never send an unmatched edited name, and prevent confirming sales with insufficient stock
   const isCustomerMatchValid = useMemo(() => {
+    if (hasInsufficientStock) return false;
+
     // Stock adjustment doesn't need customer
     if (currentAction === "adjust_stock") return true;
 
@@ -194,6 +295,7 @@ export function ConfirmationCard({
 
     return true;
   }, [
+    hasInsufficientStock,
     currentAction,
     customerName,
     selectedCustomerId,
@@ -227,6 +329,17 @@ export function ConfirmationCard({
         effectiveCustomerName = customerName.trim() || null;
       }
 
+      const confirmItems = items.map((it, idx) => {
+        const match = itemMatches[idx];
+        return {
+          product: it.product,
+          product_id: match?.status === "matched" && match.matched ? match.matched.id : undefined,
+          qty: it.qty,
+          unit: it.unit || match?.matched?.unit,
+          unit_price: it.unit_price ?? match?.matched?.price ?? 0,
+        };
+      });
+
       const payload = buildConfirmPayload({
         action: currentAction,
         idempotencyKey,
@@ -242,7 +355,7 @@ export function ConfirmationCard({
         unit: initialData.unit,
         phone: customerPhone || initialData.phone,
         notes: customerNotes || initialData.notes,
-        items: initialData.items,
+        items: confirmItems,
         createCustomer: currentAction === "add_sale" && (createCustomer || (!selectedCustomerId && currentMatchStatus === "new")),
       });
 
@@ -542,6 +655,175 @@ export function ConfirmationCard({
         </div>
       )}
 
+      {/* ── Line Items & Stock Tracking for Sale ── */}
+      {currentAction === "add_sale" && (
+        <div className="rounded-xl bg-secondary/50 border border-border/50 p-3 flex flex-col gap-2.5">
+          <div className="flex items-center justify-between text-xs pb-1 border-b border-border/30">
+            <span className="font-semibold text-foreground/90">
+              Items &amp; Stock Tracking
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              {items.length === 0 ? "0 items" : `${items.length} ${items.length === 1 ? "item" : "items"}`}
+            </span>
+          </div>
+
+          {items.length === 0 ? (
+            <div className="p-2.5 rounded-lg bg-background/60 border border-border/40 text-xs text-muted-foreground flex items-center gap-2">
+              <span>📦</span>
+              <span>No items mentioned. Stock will not change.</span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {items.map((it, idx) => {
+                const match = itemMatches[idx];
+                const matchedProd = match?.matched;
+                const stockBefore = matchedProd ? matchedProd.stock_qty : null;
+                const stockAfter = matchedProd && stockBefore !== null ? stockBefore - it.qty : null;
+                const isLowStock = matchedProd && stockAfter !== null && stockAfter <= (matchedProd.reorder_level ?? 5);
+                const isInsufficient = matchedProd && stockAfter !== null && stockAfter < 0;
+
+                return (
+                  <div
+                    key={idx}
+                    className="flex flex-col gap-1.5 p-2.5 rounded-lg bg-background/80 border border-border/60 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-foreground">{it.product}</span>
+                        <span className="text-muted-foreground font-medium">
+                          ({it.qty} {it.unit || "unit"})
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        {match?.status === "matched" && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 select-none pointer-events-none cursor-default">
+                            Matched
+                          </span>
+                        )}
+                        {match?.status === "ambiguous" && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 select-none pointer-events-none cursor-default">
+                            Ambiguous
+                          </span>
+                        )}
+                        {match?.status === "unmatched" && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-secondary text-muted-foreground border border-border/60 select-none pointer-events-none cursor-default">
+                            not in your stock list
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {match?.status === "matched" && matchedProd && (
+                      <div className="flex flex-col gap-1 pt-1 border-t border-border/30">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-muted-foreground">
+                            Product: <strong className="text-foreground">{matchedProd.name}</strong>
+                          </span>
+                          <span className="font-semibold tabular-nums text-foreground">
+                            Stock: {stockBefore} →{" "}
+                            <span
+                              className={
+                                isInsufficient
+                                  ? "text-destructive font-bold"
+                                  : isLowStock
+                                  ? "text-amber-600 dark:text-amber-400 font-bold"
+                                  : "text-emerald-600 dark:text-emerald-400 font-bold"
+                              }
+                            >
+                              {stockAfter} {matchedProd.unit}
+                            </span>
+                          </span>
+                        </div>
+
+                        {isLowStock && !isInsufficient && (
+                          <div className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">
+                            ⚠️ Low stock after sale: {stockAfter} {matchedProd.unit} remaining (Reorder level: {matchedProd.reorder_level ?? 5})
+                          </div>
+                        )}
+
+                        {isInsufficient && (
+                          <div className="text-[11px] text-destructive font-bold">
+                            ❌ Insufficient stock (Available: {stockBefore}, Requested: {it.qty})
+                          </div>
+                        )}
+
+                        {match.unitMismatch && (
+                          <div className="text-[11px] text-amber-700 dark:text-amber-400">
+                            ⚠️ Unit mismatch: spoken as &quot;{match.unitMismatch.spokenUnit}&quot;, but product unit is &quot;{match.unitMismatch.productUnit}&quot;. Stock change paused for this item.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {match?.status === "ambiguous" && match.candidates.length > 0 && (
+                      <div className="flex flex-col gap-1.5 pt-1 border-t border-border/30">
+                        <label className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">
+                          Select matching inventory product:
+                        </label>
+                        <select
+                          value={it.selectedProductId || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setItems((prev) =>
+                              prev.map((item, i) =>
+                                i === idx ? { ...item, selectedProductId: val || undefined } : item
+                              )
+                            );
+                          }}
+                          className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-background border border-border focus:ring-1 focus:ring-primary outline-none"
+                        >
+                          <option value="">-- Choose product --</option>
+                          {match.candidates.map(({ product: p }) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} (Stock: {p.stock_qty} {p.unit}, ₹{p.price || 0})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {match?.status === "unmatched" && (
+                      <div className="flex items-center justify-between pt-1 border-t border-border/30">
+                        <span className="text-[11px] text-muted-foreground">
+                          Not in your stock list. Stock will not change.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onOpenQuickAddProduct?.(it.product, it.unit)}
+                          className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+                        >
+                          + Quick add product
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Spoken vs Computed Total Mismatch Warning ── */}
+      {showTotalMismatchWarning && (
+        <div className="flex items-start justify-between gap-2 rounded-xl bg-amber-500/15 border border-amber-500/30 p-2.5 text-xs text-amber-900 dark:text-amber-200">
+          <div className="flex items-start gap-1.5">
+            <span className="text-base leading-none">⚠️</span>
+            <div>
+              <span className="font-semibold">Total Mismatch: </span>
+              Spoken total (₹{total}) differs from computed items total (₹{computedItemsTotal}).
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setTotal(computedItemsTotal)}
+            className="shrink-0 text-[11px] font-bold text-amber-900 dark:text-amber-200 underline hover:opacity-80 cursor-pointer"
+          >
+            Use ₹{computedItemsTotal}
+          </button>
+        </div>
+      )}
+
       {/* ── Financial Breakdown for Sale ── */}
       {currentAction === "add_sale" && (
         <div className="grid grid-cols-3 gap-2 text-center">
@@ -720,6 +1002,52 @@ export function ConfirmationCard({
                 <span>📄</span>
                 <span>{STRINGS.invoice.viewInvoice}</span>
               </a>
+            </div>
+          )}
+
+          {/* Post-confirm low-stock warning */}
+          {((confirmedResult.low_stock_products && confirmedResult.low_stock_products.length > 0) ||
+            (confirmedResult.stock_updates &&
+              confirmedResult.stock_updates.some(
+                (s) => s.is_low_stock || (s.reorder_level !== undefined && s.new_stock <= s.reorder_level)
+              ))) && (
+            <div className="mt-2.5 p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-900 dark:text-amber-200 flex flex-col gap-1.5">
+              <div className="flex items-center gap-1.5 font-bold text-xs">
+                <span>⚠️ Low Stock Alert</span>
+              </div>
+              <div className="flex flex-col gap-1 text-[11px]">
+                {(
+                  confirmedResult.low_stock_products ||
+                  confirmedResult.stock_updates
+                    ?.filter(
+                      (s) =>
+                        s.is_low_stock || (s.reorder_level !== undefined && s.new_stock <= s.reorder_level)
+                    )
+                    .map((s) => ({
+                      name: s.name,
+                      current_stock: s.new_stock,
+                      reorder_level: s.reorder_level ?? 5,
+                      unit: s.unit,
+                    })) ||
+                  []
+                ).map((item) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <span className="font-semibold text-foreground">{item.name}</span>
+                    <span className="font-bold text-destructive">
+                      {item.current_stock} {item.unit || "units"} remaining (Reorder: {item.reorder_level})
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-1.5 border-t border-amber-500/25 flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">Inventory dropped to reorder level</span>
+                <a
+                  href="/app/stock"
+                  className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
+                >
+                  <span>Reorder list →</span>
+                </a>
+              </div>
             </div>
           )}
           <div className="mt-3 pt-2.5 border-t border-emerald-500/20">

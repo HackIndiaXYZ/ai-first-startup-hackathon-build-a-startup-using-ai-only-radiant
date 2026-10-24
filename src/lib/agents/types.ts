@@ -98,6 +98,16 @@ export interface LedgerExecutionResult {
     name: string;
     old_stock: number;
     new_stock: number;
+    reorder_level?: number;
+    is_low_stock?: boolean;
+    unit?: string;
+  }>;
+  low_stock_products?: Array<{
+    product_id: string;
+    name: string;
+    current_stock: number;
+    reorder_level: number;
+    unit?: string;
   }>;
   unmatched_items?: Array<{
     product: string;

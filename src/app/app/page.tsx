@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { MicButton } from "@/components/mic-button";
 import { AnimatedNumber } from "@/components/animated-number";
 import { ConfirmationCard } from "@/components/confirmation-card";
@@ -49,6 +50,7 @@ interface ProductItem {
   id: string;
   name: string;
   unit: string;
+  price?: number;
   stock_qty: number;
   reorder_level: number;
 }
@@ -70,6 +72,7 @@ function formatIstDateTime(isoString: string): string {
 }
 
 function DashboardContent() {
+  const router = useRouter();
   // Dashboard Data states
   const [todaySales, setTodaySales] = useState<number>(0);
   const [totalUdhar, setTotalUdhar] = useState<number>(0);
@@ -277,7 +280,7 @@ function DashboardContent() {
       // 4. Fetch Products (for stock alerts & adjust stock dropdown)
       const { data: products, error: productErr } = await supabase
         .from("products")
-        .select("id, name, unit, stock_qty, reorder_level")
+        .select("id, name, unit, price, stock_qty, reorder_level")
         .eq("shop_id", shop.id);
 
       if (productErr) throw productErr;
@@ -286,6 +289,7 @@ function DashboardContent() {
         id: p.id,
         name: p.name,
         unit: p.unit,
+        price: Number(p.price || 0),
         stock_qty: Number(p.stock_qty || 0),
         reorder_level: Number(p.reorder_level || 0),
       }));
@@ -866,12 +870,16 @@ function DashboardContent() {
                 idempotencyKey={parseSession.idempotencyKey}
                 rawInput={parseSession.rawInput}
                 customers={customers}
+                products={allProducts}
                 onCancel={handleCancelConfirmation}
                 onSuccess={handleConfirmationSuccess}
                 onDismiss={handleDismissConfirmation}
                 onOpenQuickAddCustomer={(prefillName) => {
                   setNewCustName(prefillName);
                   setActiveQuickAction("add_customer");
+                }}
+                onOpenQuickAddProduct={(prefillName) => {
+                  router.push(`/app/stock?add=true&name=${encodeURIComponent(prefillName)}`);
                 }}
               />
             </section>
