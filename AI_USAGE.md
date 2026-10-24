@@ -788,7 +788,36 @@
 2. Restored `generateIdempotencyKey` in `src/app/app/page.tsx` imports alongside `ParseSession` and `createParseSession`.
 3. Updated unit tests to assert the new `ParseSession` lifecycle, `checkbox-create-customer` toggle, and `btn-record-another` button.
 
+## Phase 16: Shopkeeper Add Stock Items Feature
 
+### What was built
+- **Shopkeeper "Add Item to Stock" UI & Form (`src/app/app/stock/page.tsx`)**:
+  - Added a prominent `+ Add Item` button (`id="btn-open-add-product"`, min-h >= 44px) in the Stock Management page header.
+  - Added a direct `+ Add Item` button (`id="btn-empty-add-product"`) in the empty inventory state so shopkeepers can immediately start adding their own products without having to load sample data first.
+  - Built an accessible, responsive product creation form card (`id="form-add-product"`):
+    - Product Name (`id="input-new-product-name"`, required, autofocus).
+    - Unit dropdown (`id="select-new-product-unit"` with common Kirana packaging: packet, kg, piece, liter, bottle, box, bag, gram).
+    - Selling Price (`id="input-new-product-price"`, required, non-negative validation).
+    - Initial Stock Quantity (`id="input-new-product-stock"`, non-negative number, default 0).
+    - Reorder Alert Level (`id="input-new-product-reorder"`, non-negative number, default 5, with explanation of low-stock home alerts).
+  - Implemented duplicate product name detection to prevent accidental duplicate entries.
+  - Integrated direct, RLS-safe Postgres insert into `products` table via `createClient().from("products").insert(...)`.
+  - Added instant feedback banner and automatic inventory list refresh.
+  - Supported URL search param `?add=true` to automatically expand the Add Item form when navigated to from other parts of the app.
+- **Dashboard Quick Action Link (`src/app/app/page.tsx`)**:
+  - Added a shortcut link `+ Add new item to stock` in the Quick Actions "Adjust Stock" form linking directly to `/app/stock?add=true`.
+- **Roman English & Hinglish Copy (`src/lib/strings.ts`)**:
+  - Added all button labels, field labels, placeholders, and feedback notices to `STRINGS.stock` with 0 Devanagari characters.
+- **Automated Tests (`tests/auth-flow.test.ts`)**:
+  - Added tests verifying presence of header button, empty state button, form inputs, validation, and duplicate prevention.
+  - All 262 tests passing.
 
+### Prompt used
+> okay now give an optin for the shopkeepr to add item in stock
+> u have given just update option wht abt adding the stock items on their own
 
+### What AI got wrong
+1. **React 19 `react-hooks/set-state-in-effect` Lint Error**: Initial implementation used `useEffect` to synchronously call `setIsAddingProduct(true)` when `searchParams.get("add") === "true"`.
 
+### How it was fixed
+1. Initialized `isAddingProduct` with a lazy state initializer `useState(() => searchParams?.get("add") === "true")`, eliminating the redundant effect and cascading render.

@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Package, Search, AlertTriangle, CheckCircle2, ArrowLeft } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Package, Search, AlertTriangle, CheckCircle2, ArrowLeft, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { generateIdempotencyKey, formatApiError } from "@/lib/confirm-helpers";
 import { STRINGS } from "@/lib/strings";
@@ -30,6 +31,16 @@ function StockContent() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [stockDelta, setStockDelta] = useState<string>("");
   const [isSubmittingAdjust, setIsSubmittingAdjust] = useState(false);
+
+  // Add product form state
+  const searchParams = useSearchParams();
+  const [isAddingProduct, setIsAddingProduct] = useState(() => searchParams?.get("add") === "true");
+  const [newProductName, setNewProductName] = useState("");
+  const [newProductUnit, setNewProductUnit] = useState("packet");
+  const [newProductPrice, setNewProductPrice] = useState("");
+  const [newProductStock, setNewProductStock] = useState("");
+  const [newProductReorder, setNewProductReorder] = useState("5");
+  const [isSubmittingNewProduct, setIsSubmittingNewProduct] = useState(false);
 
   const loadProducts = useCallback(async (showLoading = false) => {
     if (showLoading) setIsLoading(true);
@@ -114,6 +125,7 @@ function StockContent() {
     };
   }, [loadProducts]);
 
+
   const handleLoadSampleData = async () => {
     setIsLoadingSample(true);
     setErrorMsg(null);
@@ -194,6 +206,97 @@ function StockContent() {
     }
   };
 
+  const handleCreateProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newProductName.trim();
+    if (!name) {
+      setErrorMsg("Product name is required.");
+      return;
+    }
+
+    const priceNum = Number(newProductPrice.trim());
+    if (isNaN(priceNum) || priceNum < 0) {
+      setErrorMsg("Please enter a valid non-negative selling price (e.g. 50).");
+      return;
+    }
+
+    const stockNum = newProductStock.trim() ? Number(newProductStock.trim()) : 0;
+    if (isNaN(stockNum) || stockNum < 0) {
+      setErrorMsg("Initial stock quantity must be a non-negative number.");
+      return;
+    }
+
+    const reorderNum = newProductReorder.trim() ? Number(newProductReorder.trim()) : 5;
+    if (isNaN(reorderNum) || reorderNum < 0) {
+      setErrorMsg("Reorder alert level must be a non-negative number.");
+      return;
+    }
+
+    const isDuplicate = products.some(
+      (p) => p.name.trim().toLowerCase() === name.toLowerCase()
+    );
+    if (isDuplicate) {
+      setErrorMsg(STRINGS.stock.duplicateProductError);
+      return;
+    }
+
+    setIsSubmittingNewProduct(true);
+    setErrorMsg(null);
+
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setErrorMsg("Sign in required to add products.");
+        return;
+      }
+
+      const { data: shop } = await supabase
+        .from("shops")
+        .select("id")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+
+      if (!shop) {
+        setErrorMsg("Shop profile not found.");
+        return;
+      }
+
+      const { error: insertErr } = await supabase.from("products").insert({
+        shop_id: shop.id,
+        name,
+        unit: newProductUnit.trim() || "packet",
+        price: priceNum,
+        stock_qty: stockNum,
+        reorder_level: reorderNum,
+      });
+
+      if (insertErr) {
+        throw insertErr;
+      }
+
+      setSuccessMsg(`"${name}" - ${STRINGS.stock.productAddedSuccess}`);
+      setIsAddingProduct(false);
+      setNewProductName("");
+      setNewProductUnit("packet");
+      setNewProductPrice("");
+      setNewProductStock("");
+      setNewProductReorder("5");
+
+      await loadProducts(false);
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (err: unknown) {
+      console.error("Add product error:", err);
+      const msg = err instanceof Error ? err.message : "Failed to add product";
+      setErrorMsg(msg);
+    } finally {
+      setIsSubmittingNewProduct(false);
+    }
+  };
+
   const filteredProducts = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return products;
@@ -219,13 +322,29 @@ function StockContent() {
             </span>
           </div>
 
-          <Link
-            href="/app"
-            className="self-start sm:self-auto text-xs font-semibold text-primary hover:underline min-h-[44px] flex items-center gap-1.5"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>{STRINGS.common.backToHome}</span>
-          </Link>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              id="btn-open-add-product"
+              onClick={() => {
+                setIsAddingProduct(!isAddingProduct);
+                setSelectedProductId(null);
+                setErrorMsg(null);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/95 flex items-center gap-1.5 min-h-[44px] cursor-pointer active:scale-[0.98] transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{isAddingProduct ? STRINGS.common.close : STRINGS.stock.addProductBtn}</span>
+            </button>
+
+            <Link
+              href="/app"
+              className="text-xs font-semibold text-muted-foreground hover:text-foreground border border-border px-3 py-2 rounded-xl min-h-[44px] flex items-center gap-1.5 hover:bg-muted transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>{STRINGS.common.backToHome}</span>
+            </Link>
+          </div>
         </div>
 
         {/* Notifications */}
@@ -289,6 +408,176 @@ function StockContent() {
             </span>
           </div>
         </div>
+
+        {/* Add Product Form (Collapsible Card) */}
+        {isAddingProduct && (
+          <form
+            id="form-add-product"
+            onSubmit={handleCreateProductSubmit}
+            className="p-4 sm:p-5 rounded-2xl bg-card border-2 border-primary/40 shadow-md flex flex-col gap-4 animate-in fade-in duration-150"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-foreground">
+                    {STRINGS.stock.addNewProductTitle}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {STRINGS.stock.addNewProductSubtitle}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                id="btn-close-add-product"
+                onClick={() => {
+                  setIsAddingProduct(false);
+                  setErrorMsg(null);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground cursor-pointer px-2 py-1 rounded-md hover:bg-muted"
+                aria-label={STRINGS.common.close}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Product Name */}
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label
+                  htmlFor="input-new-product-name"
+                  className="text-xs font-semibold text-foreground flex items-center gap-1"
+                >
+                  <span>{STRINGS.stock.productNameLabel}</span>
+                </label>
+                <input
+                  id="input-new-product-name"
+                  type="text"
+                  required
+                  autoFocus
+                  value={newProductName}
+                  onChange={(e) => setNewProductName(e.target.value)}
+                  placeholder={STRINGS.stock.productNamePlaceholder}
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[48px]"
+                />
+              </div>
+
+              {/* Unit */}
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="select-new-product-unit"
+                  className="text-xs font-semibold text-muted-foreground"
+                >
+                  {STRINGS.stock.unitLabel}
+                </label>
+                <select
+                  id="select-new-product-unit"
+                  value={newProductUnit}
+                  onChange={(e) => setNewProductUnit(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none min-h-[48px] cursor-pointer"
+                >
+                  <option value="packet">Packet (packet)</option>
+                  <option value="kg">Kg (kilogram)</option>
+                  <option value="piece">Piece (pc)</option>
+                  <option value="liter">Liter (L)</option>
+                  <option value="bottle">Bottle</option>
+                  <option value="box">Box / Dabba</option>
+                  <option value="bag">Bag / Bori</option>
+                  <option value="gram">Gram (g)</option>
+                </select>
+              </div>
+
+              {/* Selling Price */}
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="input-new-product-price"
+                  className="text-xs font-semibold text-foreground"
+                >
+                  {STRINGS.stock.priceLabel}
+                </label>
+                <input
+                  id="input-new-product-price"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  required
+                  value={newProductPrice}
+                  onChange={(e) => setNewProductPrice(e.target.value)}
+                  placeholder={STRINGS.stock.pricePlaceholder}
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none font-bold tabular-nums min-h-[48px]"
+                />
+              </div>
+
+              {/* Initial Stock Qty */}
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="input-new-product-stock"
+                  className="text-xs font-semibold text-muted-foreground"
+                >
+                  {STRINGS.stock.initialStockLabel}
+                </label>
+                <input
+                  id="input-new-product-stock"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={newProductStock}
+                  onChange={(e) => setNewProductStock(e.target.value)}
+                  placeholder={STRINGS.stock.initialStockPlaceholder}
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none tabular-nums min-h-[48px]"
+                />
+              </div>
+
+              {/* Reorder Alert Level */}
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="input-new-product-reorder"
+                  className="text-xs font-semibold text-muted-foreground"
+                >
+                  {STRINGS.stock.reorderLevelLabel}
+                </label>
+                <input
+                  id="input-new-product-reorder"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={newProductReorder}
+                  onChange={(e) => setNewProductReorder(e.target.value)}
+                  placeholder={STRINGS.stock.reorderLevelPlaceholder}
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none tabular-nums min-h-[48px]"
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground italic">
+              💡 {STRINGS.stock.reorderHelpText}
+            </p>
+
+            {/* Buttons */}
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border/40">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddingProduct(false);
+                  setErrorMsg(null);
+                }}
+                className="px-4 py-2.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted min-h-[48px] cursor-pointer"
+              >
+                {STRINGS.common.cancel}
+              </button>
+              <button
+                type="submit"
+                id="btn-save-new-product"
+                disabled={isSubmittingNewProduct}
+                className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/95 disabled:opacity-50 min-h-[48px] cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <Package className="w-4 h-4" />
+                <span>{isSubmittingNewProduct ? STRINGS.stock.savingProductBtn : STRINGS.stock.saveProductBtn}</span>
+              </button>
+            </div>
+          </form>
+        )}
 
         {/* Adjust Stock Form (Modal/Inline) */}
         {selectedProductId && (
@@ -415,10 +704,23 @@ function StockContent() {
             <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
               <button
                 type="button"
+                id="btn-empty-add-product"
+                onClick={() => {
+                  setIsAddingProduct(true);
+                  setErrorMsg(null);
+                }}
+                className="px-5 py-3 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90 flex items-center justify-center gap-2 min-h-[48px] cursor-pointer active:scale-[0.98] transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{STRINGS.stock.addProductBtn}</span>
+              </button>
+
+              <button
+                type="button"
                 id="btn-load-sample-data-stock"
                 onClick={handleLoadSampleData}
                 disabled={isLoadingSample}
-                className="px-5 py-3 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] cursor-pointer active:scale-[0.98] transition-all"
+                className="px-5 py-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold shadow-xs hover:bg-muted disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] cursor-pointer active:scale-[0.98] transition-all"
               >
                 {isLoadingSample ? (
                   <span>{STRINGS.stock.loadingSampleData}</span>

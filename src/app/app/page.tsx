@@ -1146,6 +1146,12 @@ function DashboardContent() {
                           </option>
                         ))}
                       </select>
+                      <Link
+                        href="/app/stock?add=true"
+                        className="text-[10px] text-primary hover:underline font-semibold mt-1 inline-flex items-center gap-1"
+                      >
+                        <span>+ Add new item to stock</span>
+                      </Link>
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-muted-foreground">

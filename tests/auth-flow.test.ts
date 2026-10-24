@@ -304,6 +304,37 @@ describe("Phase 4: Google Sign-In & Auth Flow Architecture", () => {
         "Stock page must wrap content in <Suspense>"
       );
     });
+
+    it("Stock (/app/stock) provides direct option for shopkeeper to add new items on their own", () => {
+      assert.ok(
+        stockPageSrc.includes("btn-open-add-product"),
+        "Stock page header must include + Add Item button"
+      );
+      assert.ok(
+        stockPageSrc.includes("btn-empty-add-product"),
+        "Stock empty state must include + Add Item button"
+      );
+      assert.ok(
+        stockPageSrc.includes("form-add-product"),
+        "Stock page must include add product form"
+      );
+      assert.ok(
+        stockPageSrc.includes("input-new-product-name"),
+        "Must include product name input"
+      );
+      assert.ok(
+        stockPageSrc.includes("input-new-product-price"),
+        "Must include selling price input"
+      );
+      assert.ok(
+        stockPageSrc.includes("btn-save-new-product"),
+        "Must include save product button"
+      );
+      assert.ok(
+        stockPageSrc.includes("duplicateProductError"),
+        "Must prevent duplicate products"
+      );
+    });
   });
 
   describe("7. Dual Sign Out & Account Provider Awareness", () => {
