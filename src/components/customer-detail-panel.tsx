@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { generateIdempotencyKey, formatApiError } from "@/lib/confirm-helpers";
+import { ReminderDialog } from "@/components/reminder-dialog";
 
 export interface CustomerDetail {
   id: string;
@@ -42,6 +43,7 @@ export function CustomerDetailPanel({
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [paymentSuccessMsg, setPaymentSuccessMsg] = useState<string | null>(null);
   const [paymentErrorMsg, setPaymentErrorMsg] = useState<string | null>(null);
+  const [isReminderOpen, setIsReminderOpen] = useState(false);
 
   const loadCustomerData = useCallback(
     async (showLoading = false) => {
@@ -374,16 +376,17 @@ export function CustomerDetailPanel({
               </button>
             </div>
 
-            {/* WhatsApp Reminder Button (If phone & positive balance) */}
-            {whatsappUrl && (
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 text-xs font-semibold min-h-[44px] transition-colors"
+            {/* WhatsApp Reminder Button (If positive balance) */}
+            {customer && customer.balance > 0 && (
+              <button
+                type="button"
+                id="btn-customer-whatsapp-remind"
+                data-whatsapp-url={whatsappUrl || undefined}
+                onClick={() => setIsReminderOpen(true)}
+                className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 text-xs font-semibold min-h-[44px] transition-colors cursor-pointer"
               >
                 <span>💬 WhatsApp रिमाइंडर भेजें</span>
-              </a>
+              </button>
             )}
           </div>
 
@@ -475,11 +478,21 @@ export function CustomerDetailPanel({
                       </div>
                     )}
 
-                    {/* Raw Voice Transcript if present */}
-                    {tx.raw_input && (
-                      <p className="text-[11px] text-muted-foreground bg-muted/40 p-2 rounded-lg italic">
-                        &quot;{tx.raw_input}&quot;
-                      </p>
+                    {/* Invoice button for Sales */}
+                    {isSale && (
+                      <div className="flex items-center justify-between border-t border-border/40 pt-1.5">
+                        <span className="text-[11px] text-muted-foreground">GST Invoice:</span>
+                        <a
+                          id={`btn-invoice-${tx.id}`}
+                          href={`/api/invoice/${tx.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors min-h-[34px]"
+                        >
+                          <span>📄</span>
+                          <span>Invoice</span>
+                        </a>
+                      </div>
                     )}
                   </div>
                 );
@@ -487,6 +500,18 @@ export function CustomerDetailPanel({
             </div>
           )}
         </>
+      )}
+
+      {customer && (
+        <ReminderDialog
+          isOpen={isReminderOpen}
+          onClose={() => setIsReminderOpen(false)}
+          customer={{
+            name: customer.name,
+            phone: customer.phone,
+            balance: customer.balance,
+          }}
+        />
       )}
     </div>
   );

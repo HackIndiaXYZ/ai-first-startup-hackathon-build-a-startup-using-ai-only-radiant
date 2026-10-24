@@ -4,7 +4,9 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { CustomerDetailPanel } from "@/components/customer-detail-panel";
+import { ReminderDialog } from "@/components/reminder-dialog";
 import { generateIdempotencyKey, formatApiError } from "@/lib/confirm-helpers";
+import { STRINGS } from "@/lib/strings";
 
 interface CustomerBalance {
   customer_id: string;
@@ -20,6 +22,14 @@ export default function LedgerPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Reminder Dialog state
+  const [reminderCustomer, setReminderCustomer] = useState<{
+    name: string;
+    phone: string | null;
+    balance: number;
+  } | null>(null);
+  const [shopName, setShopName] = useState<string>("Kirana Store");
 
   // Add Customer modal/inline form state
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
@@ -49,9 +59,13 @@ export default function LedgerPage() {
 
       let { data: shop } = await supabase
         .from("shops")
-        .select("id")
+        .select("id, name")
         .eq("owner_id", user.id)
         .maybeSingle();
+
+      if (shop?.name) {
+        setShopName(shop.name);
+      }
 
       if (!shop) {
         // Safe fallback: auto-create shop for new user if trigger hasn't run yet
@@ -62,10 +76,11 @@ export default function LedgerPage() {
             name: "मेरी दुकान / My Dukaan",
             language: "hi",
           })
-          .select("id")
+          .select("id, name")
           .single();
         if (newShop) {
           shop = newShop;
+          if (newShop.name) setShopName(newShop.name);
         }
       }
 
@@ -520,6 +535,26 @@ export default function LedgerPage() {
                           {hasUdhar ? "उधार बकाया" : "हिसाब साफ"}
                         </span>
                       </div>
+                      {hasUdhar && (
+                        <button
+                          type="button"
+                          id={`btn-remind-ledger-${customer.customer_id}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setReminderCustomer({
+                              name: customer.name,
+                              phone: customer.phone,
+                              balance: customer.balance,
+                            });
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-bold transition-all min-h-[36px] flex items-center gap-1 cursor-pointer"
+                          title="Send WhatsApp payment reminder"
+                        >
+                          <span>💬</span>
+                          <span>{STRINGS.reminders.remindButton}</span>
+                        </button>
+                      )}
                       <span className="text-muted-foreground text-sm">›</span>
                     </div>
                   </Link>
@@ -549,6 +584,14 @@ export default function LedgerPage() {
           )}
         </section>
       </div>
+
+      {/* Payment Reminder Dialog */}
+      <ReminderDialog
+        isOpen={Boolean(reminderCustomer)}
+        onClose={() => setReminderCustomer(null)}
+        customer={reminderCustomer}
+        shopName={shopName}
+      />
     </main>
   );
 }

@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { MicButton } from "@/components/mic-button";
 import { AnimatedNumber } from "@/components/animated-number";
 import { ConfirmationCard, ParseApiResponse } from "@/components/confirmation-card";
+import { ReminderDialog } from "@/components/reminder-dialog";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { createClient } from "@/lib/supabase/client";
 import { getIstDayRange } from "@/lib/date-utils";
 import { generateIdempotencyKey, formatApiError } from "@/lib/confirm-helpers";
 import { Customer } from "@/lib/agents/types";
+import { STRINGS } from "@/lib/strings";
 
 interface Debtor {
   customer_id: string;
@@ -61,7 +63,7 @@ function formatIstDateTime(isoString: string): string {
   }
 }
 
-export default function AppPage() {
+function DashboardContent() {
   // Dashboard Data states
   const [todaySales, setTodaySales] = useState<number>(0);
   const [totalUdhar, setTotalUdhar] = useState<number>(0);
@@ -74,6 +76,14 @@ export default function AppPage() {
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [isLoadingSample, setIsLoadingSample] = useState<boolean>(false);
   const [sampleSuccessMsg, setSampleSuccessMsg] = useState<string | null>(null);
+
+  // Reminder Dialog state
+  const [reminderCustomer, setReminderCustomer] = useState<{
+    name: string;
+    phone: string | null;
+    balance: number;
+  } | null>(null);
+  const [shopName, setShopName] = useState<string>("Kirana Store");
 
   // Input & Parse states
   const [typedInput, setTypedInput] = useState<string>("");
@@ -184,11 +194,14 @@ export default function AppPage() {
 
       const { data: initialShop, error: shopErr } = await supabase
         .from("shops")
-        .select("id")
+        .select("id, name")
         .eq("owner_id", user.id)
         .maybeSingle();
 
       let shop = initialShop;
+      if (shop?.name) {
+        setShopName(shop.name);
+      }
       if (!shop && !shopErr) {
         // Safe fallback: auto-create shop for new user if trigger hasn't run yet
         const { data: newShop } = await supabase
@@ -198,10 +211,11 @@ export default function AppPage() {
             name: "मेरी दुकान / My Dukaan",
             language: "hi",
           })
-          .select("id")
+          .select("id, name")
           .single();
         if (newShop) {
           shop = newShop;
+          if (newShop.name) setShopName(newShop.name);
         }
       }
 
@@ -1248,6 +1262,19 @@ export default function AppPage() {
                               ₹{tx.total_amount.toLocaleString("en-IN")}
                             </span>
                           )}
+
+                          {tx.type === "sale" && (
+                            <a
+                              id={`btn-recent-invoice-${tx.id}`}
+                              href={`/api/invoice/${tx.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline mt-0.5"
+                            >
+                              <span>📄</span>
+                              <span>{STRINGS.invoice.viewInvoice}</span>
+                            </a>
+                          )}
                         </div>
                       </div>
                     );
@@ -1366,12 +1393,14 @@ export default function AppPage() {
             ) : (
               <div className="flex flex-col gap-2">
                 {debtors.map((debtor) => (
-                  <Link
+                  <div
                     key={debtor.customer_id}
-                    href={`/app/ledger/${debtor.customer_id}`}
-                    className="flex items-center justify-between p-3.5 rounded-xl bg-card border border-border/80 hover:border-primary/40 transition-all duration-150 shadow-xs active:scale-[0.99] min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="flex items-center justify-between p-3.5 rounded-xl bg-card border border-border/80 hover:border-primary/40 transition-all duration-150 shadow-xs min-h-[48px]"
                   >
-                    <div className="flex flex-col min-w-0 pr-2">
+                    <Link
+                      href={`/app/ledger/${debtor.customer_id}`}
+                      className="flex flex-col min-w-0 pr-2 flex-1 focus-visible:outline-none"
+                    >
                       <span className="text-sm font-bold text-foreground truncate">
                         {debtor.name}
                       </span>
@@ -1380,14 +1409,29 @@ export default function AppPage() {
                           📞 {debtor.phone}
                         </span>
                       )}
-                    </div>
+                    </Link>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-sm font-extrabold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg tabular-nums border border-amber-500/20">
                         ₹{debtor.balance.toLocaleString("en-IN")}
                       </span>
-                      <span className="text-muted-foreground text-xs">›</span>
+                      <button
+                        type="button"
+                        id={`btn-remind-${debtor.customer_id}`}
+                        onClick={() =>
+                          setReminderCustomer({
+                            name: debtor.name,
+                            phone: debtor.phone,
+                            balance: debtor.balance,
+                          })
+                        }
+                        className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-bold transition-all min-h-[36px] flex items-center gap-1 cursor-pointer"
+                        title="Send WhatsApp payment reminder"
+                      >
+                        <span>💬</span>
+                        <span>{STRINGS.reminders.remindButton}</span>
+                      </button>
                     </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             )}
@@ -1486,6 +1530,29 @@ export default function AppPage() {
           )}
         </div>
       </div>
+
+      {/* Payment Reminder Dialog */}
+      <ReminderDialog
+        isOpen={Boolean(reminderCustomer)}
+        onClose={() => setReminderCustomer(null)}
+        customer={reminderCustomer}
+        shopName={shopName}
+      />
     </main>
+  );
+}
+
+export default function AppPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full max-w-[1200px] mx-auto p-4 flex flex-col gap-4">
+          <div className="h-14 rounded-2xl bg-muted/40 animate-pulse border border-border/40" />
+          <div className="h-44 rounded-2xl bg-muted/40 animate-pulse border border-border/40" />
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }

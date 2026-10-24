@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { LedgerExecutionResult, Customer } from "@/lib/agents/types";
 import { findBestCustomerMatch } from "@/lib/agents/customer-matcher";
 import { buildConfirmPayload, formatApiError, isLowConfidence } from "@/lib/confirm-helpers";
+import { STRINGS } from "@/lib/strings";
 
 export interface ParseApiResponse {
   success: boolean;
@@ -575,6 +576,21 @@ export function ConfirmationCard({
               <span className="text-sm font-extrabold text-amber-700 dark:text-amber-300">
                 ₹{confirmedResult.customer.balance.toLocaleString("en-IN")}
               </span>
+            </div>
+          )}
+          {confirmedResult.transaction_id && (confirmedResult.action === "add_sale" || initialAction === "add_sale") && (
+            <div className="mt-2.5 pt-2 border-t border-emerald-500/20 flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground font-medium">GST-style invoice:</span>
+              <a
+                id="btn-view-invoice"
+                href={`/api/invoice/${confirmedResult.transaction_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow hover:bg-primary/90 transition-all min-h-[38px]"
+              >
+                <span>📄</span>
+                <span>{STRINGS.invoice.viewInvoice}</span>
+              </a>
             </div>
           )}
         </div>
