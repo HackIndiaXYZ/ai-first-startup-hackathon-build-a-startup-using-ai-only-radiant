@@ -1,57 +1,100 @@
 "use client";
 
-import { useSyncExternalStore, useState, Component, ErrorInfo, ReactNode } from "react";
+import { useState, useEffect, useRef, Component, ErrorInfo, ReactNode, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "motion/react";
 
-// Dynamically import Spline scene with SSR disabled
-const Spline = dynamic(() => import("@splinetool/react-spline"), {
+// Dynamically import lightweight code-built 3D scene with SSR disabled
+const Hero3DScene = dynamic(() => import("./hero-3d-scene"), {
   ssr: false,
 });
 
-function subscribe(callback: () => void) {
-  if (typeof window === "undefined") return () => {};
-  const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-  mediaQuery.addEventListener("change", callback);
-  return () => mediaQuery.removeEventListener("change", callback);
-}
-
-function get3DCapableSnapshot(): boolean {
+/**
+ * Checks if client device satisfies all 5 performance & environmental conditions for 3D:
+ * 1. WebGL2 available
+ * 2. No prefers-reduced-motion
+ * 3. No navigator.connection.saveData
+ * 4. hardwareConcurrency > 4
+ * 5. deviceMemory > 4 (when present)
+ */
+export function is3DSupported(): boolean {
   if (typeof window === "undefined") return false;
-  const splineSceneUrl = process.env.NEXT_PUBLIC_SPLINE_SCENE_URL;
-  if (!splineSceneUrl) return false;
 
-  // Check prefers-reduced-motion
+  // Support manual overrides for verification & fallback testing
+  if (window.location.search.includes("fallback=1") || window.location.search.includes("3d=0")) {
+    return false;
+  }
+  if (window.location.search.includes("3d=1")) {
+    return true;
+  }
+
+  // 1. WebGL2 available check
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = window.WebGL2RenderingContext && canvas.getContext("webgl2");
+    if (!gl) return false;
+  } catch {
+    return false;
+  }
+
+  // 2. prefers-reduced-motion check
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     return false;
   }
 
-  // Skip on low-power devices (concurrency <= 4 or deviceMemory <= 4)
-  const concurrency = navigator.hardwareConcurrency || 4;
-  const memory = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 8;
-
-  if (concurrency <= 4 || memory <= 4) {
+  // 3. navigator.connection.saveData check
+  const connection = (navigator as unknown as { connection?: { saveData?: boolean } }).connection;
+  if (connection?.saveData) {
     return false;
+  }
+
+  // 4. hardwareConcurrency > 4
+  const concurrency = navigator.hardwareConcurrency || 4;
+  if (concurrency <= 4) {
+    return false;
+  }
+
+  // 5. deviceMemory > 4 (when present)
+  if ("deviceMemory" in navigator) {
+    const memory = (navigator as unknown as { deviceMemory?: number }).deviceMemory;
+    if (memory !== undefined && memory <= 4) {
+      return false;
+    }
   }
 
   return true;
 }
 
-function getServerSnapshot(): boolean {
-  return false;
+
+function getDprSnapshot(): number {
+  if (typeof window === "undefined") return 1.5;
+  return window.innerWidth < 768 ? 1 : Math.min(1.5, window.devicePixelRatio || 1);
 }
 
-class SplineErrorBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { hasError: boolean }> {
-  constructor(props: { fallback: ReactNode; children: ReactNode }) {
+function subscribeDpr(callback: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("resize", callback);
+  return () => window.removeEventListener("resize", callback);
+}
+
+class Hero3DErrorBoundary extends Component<
+  { fallback: ReactNode; children: ReactNode; onError?: () => void },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: ReactNode; children: ReactNode; onError?: () => void }) {
     super(props);
     this.state = { hasError: false };
   }
+
   static getDerivedStateFromError() {
     return { hasError: true };
   }
+
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.warn("Spline 3D failed to load, falling back to CSS visual:", error, errorInfo);
+    console.error("[Hero3DErrorBoundary] error:", error, errorInfo);
+    this.props.onError?.();
   }
+
   render() {
     if (this.state.hasError) {
       return this.props.fallback;
@@ -61,40 +104,122 @@ class SplineErrorBoundary extends Component<{ fallback: ReactNode; children: Rea
 }
 
 export function HeroVisual() {
-  const canRender3D = useSyncExternalStore(subscribe, get3DCapableSnapshot, getServerSnapshot);
-  const [splineLoaded, setSplineLoaded] = useState<boolean>(false);
-  const splineSceneUrl = process.env.NEXT_PUBLIC_SPLINE_SCENE_URL;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dpr = useSyncExternalStore(subscribeDpr, getDprSnapshot, () => 1.5);
+
+  const [shouldLoad3D, setShouldLoad3D] = useState<boolean>(false);
+  const [is3DReady, setIs3DReady] = useState<boolean>(false);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [hasContextLost, setHasContextLost] = useState<boolean>(false);
+
+  // Loaded only after page is idle (requestIdleCallback with 1500ms timeout)
+  // and only when all performance/environmental checks pass
+  useEffect(() => {
+    let cancelled = false;
+    const onIdle = () => {
+      if (!cancelled && is3DSupported()) {
+        setShouldLoad3D(true);
+      }
+    };
+
+    let idleId: number | undefined;
+
+    if ("requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(onIdle, { timeout: 1500 });
+    }
+    const timerId = setTimeout(onIdle, 1500);
+
+    return () => {
+      cancelled = true;
+      if (idleId !== undefined && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      clearTimeout(timerId);
+    };
+  }, []);
+
+  // Pause frameloop when off-screen or tab is hidden
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    let isVisibleOnScreen = true;
+    let isTabVisible = document.visibilityState === "visible";
+
+    const updatePauseState = () => {
+      setIsPaused(!isVisibleOnScreen || !isTabVisible);
+    };
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisibleOnScreen = entry.isIntersecting;
+        updatePauseState();
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(el);
+
+    const handleVisibility = () => {
+      isTabVisible = document.visibilityState === "visible";
+      updatePauseState();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
+  const show3D = shouldLoad3D && !hasContextLost;
 
   return (
-    <div className="relative w-full max-w-[320px] sm:max-w-md lg:max-w-lg mx-auto aspect-square flex items-center justify-center">
+    <div
+      ref={containerRef}
+      id="hero-visual-container"
+      className="relative w-full max-w-[320px] sm:max-w-md lg:max-w-lg mx-auto aspect-square flex items-center justify-center select-none"
+    >
       {/* Background ambient radial glow */}
       <div className="absolute inset-0 bg-gradient-to-tr from-violet-600/25 via-indigo-500/20 to-amber-500/10 blur-[90px] rounded-full pointer-events-none -z-10" />
 
-      {/* 3D Spline Scene if supported and URL configured */}
-      {canRender3D && splineSceneUrl ? (
-        <SplineErrorBoundary fallback={<CssHeroVisual />}>
-          <div className="relative w-full h-full flex items-center justify-center">
-            <Spline
-              scene={splineSceneUrl}
-              onLoad={() => setSplineLoaded(true)}
-              className={`w-full h-full transition-opacity duration-700 ${
-                splineLoaded ? "opacity-100" : "opacity-0"
-              }`}
+      {/* 3D Code-Built Scene if supported & idle, with graceful cross-fade */}
+      {show3D && (
+        <Hero3DErrorBoundary
+          fallback={<CssHeroVisual />}
+          onError={() => setHasContextLost(true)}
+        >
+          <div
+            className={`absolute inset-0 w-full h-full transition-opacity duration-700 ${
+              is3DReady ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+          >
+            <Hero3DScene
+              onReady={() => setIs3DReady(true)}
+              onContextLost={() => setHasContextLost(true)}
+              isPaused={isPaused}
+              dpr={dpr}
             />
-            {!splineLoaded && <CssHeroVisual />}
           </div>
-        </SplineErrorBoundary>
-      ) : (
-        <CssHeroVisual />
+        </Hero3DErrorBoundary>
       )}
+
+      {/* CSS/SVG Visual (renders immediately as LCP/poster, cross-fades out when 3D is ready) */}
+      <div
+        className={`w-full h-full transition-opacity duration-700 ${
+          is3DReady && show3D ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
+      >
+        <CssHeroVisual />
+      </div>
     </div>
   );
 }
 
 /**
  * Pure CSS/SVG + Motion Voice Orb & Floating Glass Ledger Cards
+ * (LCP Poster & Graceful Fallback for low-power / prefers-reduced-motion devices)
  */
-function CssHeroVisual() {
+export function CssHeroVisual() {
   const shouldReduceMotion = useReducedMotion();
 
   return (
@@ -133,7 +258,11 @@ function CssHeroVisual() {
               viewBox="0 0 24 24"
               strokeWidth={2}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 003-3V5a3 3 0 10-6 0v6a3 3 0 003 3z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 003-3V5a3 3 0 10-6 0v6a3 3 0 003 3z"
+              />
             </svg>
           </div>
 
@@ -172,9 +301,9 @@ function CssHeroVisual() {
           </span>
         </div>
         <div className="flex items-center justify-between text-[11px] pt-1 border-t border-white/10">
-          <span className="text-white/60">Total: ₹500 · Cash: ₹200</span>
+          <span className="text-white/60">Total: Rs 500 · Cash: Rs 200</span>
           <span className="font-extrabold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
-            Udhar ₹300
+            Udhar Rs 300
           </span>
         </div>
       </motion.div>

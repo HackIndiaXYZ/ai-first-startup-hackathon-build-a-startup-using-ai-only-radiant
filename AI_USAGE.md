@@ -978,4 +978,59 @@
 2. Updated `normalizeUnit("dozen")` to return `"dozen"`, verified `checkUnitMismatch("dozen", "piece") === undefined`, and verified `checkUnitMismatch("dozen", "packet")` flags a unit mismatch.
 3. Corrected `loadInitialData()` to `loadDashboardData()`.
 
+## Phase 20: Landing Hero 3D Scene — Code-Built Three.js + R3F Voice Orb & Floating Cards
+
+### What was built
+- **Code-Built 3D Scene (`src/components/landing/hero-3d-scene.tsx`)**:
+  - Pinned exact versions without carets: `"@react-three/fiber": "9.8.2"`, `"three": "0.186.1"`, dev `"@types/three": "0.186.0"`.
+  - Zero external models, fonts, textures, or HDR maps downloaded over the network; 100% generated in code.
+  - **Voice Orb**: Emissive inner core sphere (`#1e1035` / `#7c3aed`), outer additive rim sphere (`#6366f1` / `#a78bfa`), fake radial glow billboard sprite with additive blending (zero postprocessing passes), and an orbit ring with a saffron accent point (`#f59e0b`).
+  - **64-Bar Waveform Ring**: 64 instanced-style rectangular bars orbiting the central orb, pulsing to a simulated voice amplitude created by a harmonic sum of 4 sine waves (`t * 3.6 + i * 0.38`, `t * 5.2 - i * 0.72`, etc., without microphone permissions).
+  - **Instanced Particle Field**: Deterministic particle field (~1200 on desktop, ~400 on mobile) drifting upward and oscillating with pure pseudo-random mathematical functions (no state mutations).
+  - **3 Floating Glass Ledger Cards**: Rounded planes mapped with high-resolution HTML5 canvas-drawn textures created in code:
+    1. *"🛒 Ramesh Kumar — Udhar Rs 300 (✓ Confirmed, Total: Rs 500, Cash: Rs 200)"*
+    2. *"📦 Doodh 2 packet — Stock Update (Inventory decremented, Remaining: 18 in stock)"*
+    3. *"💬 1-Tap WhatsApp Reminder (Automated reminder link generated)"*
+  - **Interactive Motion**:
+    - Subtle idle oscillation and rotation.
+    - Desktop pointer parallax with smoothed camera/scene lerp.
+    - Scroll-linked position scrub across hero via Lenis / GSAP ScrollTrigger offset tracking.
+    - Full resource disposal on unmount (`dispose()` called on all geometries, materials, and textures).
+- **Hero Visual Architecture & Device Guards (`src/components/landing/hero-visual.tsx`)**:
+  - Dynamically imported `Hero3DScene` with `ssr: false`.
+  - Loaded strictly after page is idle (`requestIdleCallback` with a 1500ms timeout fallback).
+  - Strict 5-part capability check (`is3DSupported()`):
+    1. WebGL2 context available.
+    2. No `prefers-reduced-motion: reduce`.
+    3. No `navigator.connection.saveData`.
+    4. `hardwareConcurrency > 4`.
+    5. `deviceMemory > 4` (when present).
+  - LCP Poster & Smooth Cross-fade: `CssHeroVisual` renders immediately as the LCP poster and smoothly cross-fades (`transition-opacity duration-700`) to the 3D canvas once Three.js initializes.
+  - Frameloop optimization: `frameloop={isPaused ? "never" : "always"}` via `IntersectionObserver` (paused when off-screen) and `visibilitychange` (paused when tab is hidden).
+  - DPR capped at 1.5 on desktop, 1.0 on mobile.
+  - Fallback & Error Boundary: `Hero3DErrorBoundary` wraps the scene, and `webglcontextlost` events automatically restore the poster.
+  - Accessibility: `<Canvas>` is wrapped with `aria-hidden="true"` and `role="presentation"`. All hero headings, copy, and CTA buttons remain in semantic DOM.
+  - 3D chunk gzip size: 238 KB (under the 250 KB limit). Initial page JS did not grow.
+
+### Prompt used
+> Hero 3D. Read AGENTS.md and the existing landing code first. Work on git branch landing-3d, created from the branch that contains the landing redesign. Change ONLY src/components/landing/ (hero area) and package.json/lockfile. Do not touch src/app/app, src/app/api, src/lib, supabase or tests.
+> Goal: replace the right-hand hero visual with a lightweight code-built 3D scene using three + @react-three/fiber (drei only if truly needed, with imports limited to the exact helpers). Pin exact versions of every new package. First check compatibility with the React and Next.js versions in this repo and stop and report if there is a conflict. No other new libraries. No downloaded models, textures, fonts or HDR maps (do not use drei Environment presets, Text or other helpers that fetch remote files): everything is generated in code.
+> SCENE: a glowing "voice orb" (emissive sphere with a fresnel-style rim shader or additive layered meshes, no transmission materials), a ring of 64 bars forming a waveform around it that pulses to a simulated amplitude (sum of sines, no microphone), an instanced particle field (about 1200 on desktop, about 400 on mobile) drifting slowly, and 3 floating glass "ledger cards" as simple rounded planes with a canvas-generated texture showing "Ramesh Kumar - Udhar Rs 300", "Doodh 2 packet", "Reminder sent". Violet/indigo/saffron palette to match the page. No postprocessing passes; fake the glow with additive sprites.
+> MOTION: slow idle rotation; desktop pointer parallax (camera lerp); scroll-linked camera/orb movement across the hero via the existing ScrollTrigger/Lenis setup (progress 0..1), with the scene pausing when off-screen.
+> PERFORMANCE: a dynamic import with ssr:false, loaded only after the page is idle (requestIdleCallback with a timeout) and only when ALL hold: WebGL2 available, no prefers-reduced-motion, no navigator.connection.saveData, hardwareConcurrency > 4 (and deviceMemory > 4 when present). Otherwise keep the existing CSS/SVG hero visual. The CSS visual renders first (it is the LCP/poster) and cross-fades to the canvas when ready. DPR capped at 1.5 (1 on mobile), frameloop paused when off-screen or when the tab is hidden, dispose all geometries/materials/textures on unmount, handle webglcontextlost by falling back to the poster, wrap in an error boundary. Target at least 55 fps on a mid-range laptop. No CLS. Initial page JavaScript must not grow: the 3D chunk loads lazily; report the chunk size in gzip from the build output and keep it under 250 KB gzip.
+> ACCESSIBILITY: the canvas is aria-hidden and decorative; all hero text and the CTA stay in the DOM and work without the 3D.
+> Next.js 16 Cache Components is on: read node_modules/next/dist/docs/ first, keep animation in small "use client" components. Show the plan first. At the end run npm run lint, npm test AND npm run build and show the output, the 3D chunk size, and screenshots of the hero at 360, 1280 and 1920 widths with the 3D on and with the fallback in docs/evidence/landing-3d/. Append to AI_USAGE.md.
+
+### What AI got wrong
+1. **React 19 Lint Rule (`react-hooks/set-state-in-effect`)**: Synchronously calling `setCanRender3D(true)` in `useEffect` on mount triggered ESLint errors.
+2. **React Compiler Immutability Violation in Animation Loop**: Mutating particle parameter properties (`p.y += delta`) in `useFrame` triggered `react-hooks/immutability`.
+3. **Three.js 0.186 Deprecation Warning**: Accessing `state.clock.getElapsedTime()` produced a console deprecation warning: `"THREE.Clock: This module has been deprecated. Please use THREE.Timer instead"`.
+4. **prefer-const Lint Error**: Declaring `let timerId` without reassignment triggered ESLint `prefer-const`.
+
+### How it was fixed
+1. Moved capability verification into the asynchronous `onIdle` callback (`requestIdleCallback` / `setTimeout`), avoiding synchronous state setting in the effect body.
+2. Formulated particle positions as a pure mathematical function of elapsed time (`(((p.initialY + t * p.speedY + 3.8) % 7.6) - 3.8)`), eliminating state mutation.
+3. Replaced `state.clock.getElapsedTime()` with standard `performance.now() * 0.001`.
+4. Changed `let timerId` to `const timerId`.
+
 
