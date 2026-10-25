@@ -3,8 +3,9 @@
 import { useState, useMemo } from "react";
 import { LedgerExecutionResult, Customer } from "@/lib/agents/types";
 import { findBestCustomerMatch } from "@/lib/agents/customer-matcher";
-import { findBestProductMatch, checkUnitMismatch, Product } from "@/lib/product-matcher";
+import { findBestProductMatch, checkUnitMismatch, resolveEffectiveItemQty, Product } from "@/lib/product-matcher";
 import { buildConfirmPayload, formatApiError, isLowConfidence } from "@/lib/confirm-helpers";
+import { createClient } from "@/lib/supabase/client";
 import { STRINGS } from "@/lib/strings";
 
 export interface ParseApiResponse {
@@ -93,29 +94,21 @@ export function ConfirmationCard({
     initialAction === "add_sale" && initialCustomerMatch?.status === "new"
   );
 
-  const [total, setTotal] = useState<number>(() => {
-    const rawTotal = Number(initialData.total ?? 0);
-    if (rawTotal > 0) return rawTotal;
-    if (initialAction === "add_sale" && (initialData.items || []).length > 0) {
-      let sum = 0;
-      for (const it of initialData.items || []) {
-        if (it.unit_price) {
-          sum += it.qty * it.unit_price;
-        } else {
-          const match = findBestProductMatch(it.product, products, it.unit);
-          if (match?.matched?.price) {
-            sum += it.qty * match.matched.price;
-          }
-        }
-      }
-      if (sum > 0) return sum;
-    }
-    return rawTotal;
-  });
-  const [paid, setPaid] = useState<number>(Number(initialData.paid ?? 0));
-  const [amount, setAmount] = useState<number>(Number(initialData.amount ?? 0));
-  const [product, setProduct] = useState<string>(initialData.product || "");
-  const [qtyChange, setQtyChange] = useState<number>(Number(initialData.qty_change ?? 0));
+  // Additional products created via Quick Add modal inside this card session
+  const [quickAddedProducts, setQuickAddedProducts] = useState<Product[]>([]);
+  const cardProducts = useMemo(() => [...products, ...quickAddedProducts], [products, quickAddedProducts]);
+
+  // Inline Quick Add Product Modal state
+  const [quickAddModal, setQuickAddModal] = useState<{
+    itemIndex: number;
+    name: string;
+    unit: string;
+    price: string;
+    stock: string;
+    reorder: string;
+    isSaving: boolean;
+    error: string | null;
+  } | null>(null);
 
   // Items tracking state
   const [items, setItems] = useState<Array<{
@@ -136,7 +129,7 @@ export function ConfirmationCard({
   const itemMatches = useMemo(() => {
     return items.map((it) => {
       if (it.selectedProductId) {
-        const found = products.find((p) => p.id === it.selectedProductId);
+        const found = cardProducts.find((p) => p.id === it.selectedProductId);
         if (found) {
           const unitMismatch = checkUnitMismatch(it.unit, found.unit);
           return {
@@ -150,29 +143,67 @@ export function ConfirmationCard({
           };
         }
       }
-      return findBestProductMatch(it.product, products, it.unit);
+      return findBestProductMatch(it.product, cardProducts, it.unit);
     });
-  }, [items, products]);
+  }, [items, cardProducts]);
 
-  // Compute items total from matched product prices
+  // Compute from prices ONLY when EVERY item is matched, units agree, and no unit mismatch exists
+  const allItemsMatchedWithoutMismatch = useMemo(() => {
+    if (items.length === 0) return true;
+    return items.every((it, idx) => {
+      const match = itemMatches[idx];
+      return (
+        match?.status === "matched" &&
+        match.matched !== null &&
+        !match.unitMismatch &&
+        (it.unit_price !== undefined || Number(match.matched.price || 0) > 0)
+      );
+    });
+  }, [items, itemMatches]);
+
   const computedItemsTotal = useMemo(() => {
+    if (items.length === 0 || !allItemsMatchedWithoutMismatch) return 0;
     let sum = 0;
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const match = itemMatches[i];
-      const price = it.unit_price ?? match?.matched?.price ?? 0;
-      sum += it.qty * price;
+      const prod = match?.matched;
+      const effectiveQty = prod ? resolveEffectiveItemQty(it.qty, it.unit, prod.unit) : it.qty;
+      const price = it.unit_price ?? Number(prod?.price || 0);
+      sum += effectiveQty * price;
     }
     return sum;
-  }, [items, itemMatches]);
+  }, [items, itemMatches, allItemsMatchedWithoutMismatch]);
+
+  // User manual total override if edited
+  const [userEditedTotal, setUserEditedTotal] = useState<number | null>(null);
+
+  const total = useMemo(() => {
+    if (userEditedTotal !== null) return userEditedTotal;
+    const rawTotal = Number(initialData.total ?? 0);
+    if (rawTotal > 0) return rawTotal;
+    if (currentAction === "add_sale" && allItemsMatchedWithoutMismatch && computedItemsTotal > 0) {
+      return computedItemsTotal;
+    }
+    return 0; // Require user to enter total when not all items matched
+  }, [userEditedTotal, initialData.total, currentAction, allItemsMatchedWithoutMismatch, computedItemsTotal]);
+
+  const setTotal = (val: number) => setUserEditedTotal(val);
+
+  const [paid, setPaid] = useState<number>(Number(initialData.paid ?? 0));
+  const [amount, setAmount] = useState<number>(Number(initialData.amount ?? 0));
+  const [product, setProduct] = useState<string>(initialData.product || "");
+  const [qtyChange, setQtyChange] = useState<number>(Number(initialData.qty_change ?? 0));
 
   const hasInsufficientStock = useMemo(() => {
     if (currentAction !== "add_sale") return false;
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const match = itemMatches[i];
-      if (match?.status === "matched" && match.matched) {
-        if (match.matched.stock_qty - it.qty < 0) {
+      // Skip unit mismatch items because stock will not change for them
+      if (match?.status === "matched" && match.matched && !match.unitMismatch) {
+        const effQty = resolveEffectiveItemQty(it.qty, it.unit, match.matched.unit);
+        if (match.matched.stock_qty - effQty < 0) {
           return true;
         }
       }
@@ -226,6 +257,11 @@ export function ConfirmationCard({
   // Validation: Never send an unmatched edited name, and prevent confirming sales with insufficient stock
   const isCustomerMatchValid = useMemo(() => {
     if (hasInsufficientStock) return false;
+
+    // For sale, total MUST be entered (> 0); never save a guessed total
+    if (currentAction === "add_sale" && (!total || total <= 0)) {
+      return false;
+    }
 
     // Stock adjustment doesn't need customer
     if (currentAction === "adjust_stock") return true;
@@ -297,6 +333,7 @@ export function ConfirmationCard({
   }, [
     hasInsufficientStock,
     currentAction,
+    total,
     customerName,
     selectedCustomerId,
     isCustomerNameEdited,
@@ -331,12 +368,18 @@ export function ConfirmationCard({
 
       const confirmItems = items.map((it, idx) => {
         const match = itemMatches[idx];
+        const isMismatch = Boolean(match?.unitMismatch);
+        const effQty = match?.matched
+          ? resolveEffectiveItemQty(it.qty, it.unit, match.matched.unit)
+          : it.qty;
+
         return {
           product: it.product,
-          product_id: match?.status === "matched" && match.matched ? match.matched.id : undefined,
-          qty: it.qty,
+          product_id: match?.status === "matched" && match.matched && !isMismatch ? match.matched.id : undefined,
+          qty: effQty,
           unit: it.unit || match?.matched?.unit,
           unit_price: it.unit_price ?? match?.matched?.price ?? 0,
+          unit_mismatch: isMismatch,
         };
       });
 
@@ -378,6 +421,74 @@ export function ConfirmationCard({
       setApiError(formatApiError(err));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveQuickAddProduct = async () => {
+    if (!quickAddModal) return;
+    if (!quickAddModal.name.trim()) {
+      setQuickAddModal((prev) => prev ? { ...prev, error: "Product name is required" } : null);
+      return;
+    }
+
+    setQuickAddModal((prev) => prev ? { ...prev, isSaving: true, error: null } : null);
+
+    try {
+      const supabase = createClient();
+      const { data: { user }, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !user) {
+        throw new Error("Sign in required to add products.");
+      }
+
+      const { data: shop, error: shopErr } = await supabase
+        .from("shops")
+        .select("id")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+
+      if (shopErr || !shop) {
+        throw new Error("Shop profile not found.");
+      }
+
+      const newProdPayload = {
+        shop_id: shop.id,
+        name: quickAddModal.name.trim(),
+        unit: quickAddModal.unit.trim() || "packet",
+        price: Number(quickAddModal.price) || 0,
+        stock_qty: Number(quickAddModal.stock) || 0,
+        reorder_level: Number(quickAddModal.reorder) || 5,
+      };
+
+      const { data: newProd, error: insertErr } = await supabase
+        .from("products")
+        .insert(newProdPayload)
+        .select("id, name, unit, price, stock_qty, reorder_level")
+        .single();
+
+      if (insertErr || !newProd) {
+        throw insertErr || new Error("Failed to insert product.");
+      }
+
+      const targetIdx = quickAddModal.itemIndex;
+
+      // 1. Add to local quickAddedProducts
+      setQuickAddedProducts((prev) => [...prev, newProd as Product]);
+
+      // 2. Re-run matching for that item by setting its selectedProductId
+      setItems((prev) =>
+        prev.map((item, i) =>
+          i === targetIdx ? { ...item, selectedProductId: newProd.id } : item
+        )
+      );
+
+      // 3. Notify parent callback if provided
+      onOpenQuickAddProduct?.(newProd.name, newProd.unit);
+
+      // 4. Close modal
+      setQuickAddModal(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to create product.";
+      setQuickAddModal((prev) => prev ? { ...prev, isSaving: false, error: msg } : null);
     }
   };
 
@@ -678,9 +789,10 @@ export function ConfirmationCard({
                 const match = itemMatches[idx];
                 const matchedProd = match?.matched;
                 const stockBefore = matchedProd ? matchedProd.stock_qty : null;
-                const stockAfter = matchedProd && stockBefore !== null ? stockBefore - it.qty : null;
+                const effQty = matchedProd ? resolveEffectiveItemQty(it.qty, it.unit, matchedProd.unit) : it.qty;
+                const stockAfter = matchedProd && stockBefore !== null ? stockBefore - effQty : null;
                 const isLowStock = matchedProd && stockAfter !== null && stockAfter <= (matchedProd.reorder_level ?? 5);
-                const isInsufficient = matchedProd && stockAfter !== null && stockAfter < 0;
+                const isInsufficient = matchedProd && stockAfter !== null && stockAfter < 0 && !match.unitMismatch;
 
                 return (
                   <div
@@ -714,45 +826,45 @@ export function ConfirmationCard({
                     </div>
 
                     {match?.status === "matched" && matchedProd && (
-                      <div className="flex flex-col gap-1 pt-1 border-t border-border/30">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-muted-foreground">
-                            Product: <strong className="text-foreground">{matchedProd.name}</strong>
-                          </span>
-                          <span className="font-semibold tabular-nums text-foreground">
-                            Stock: {stockBefore} →{" "}
-                            <span
-                              className={
-                                isInsufficient
-                                  ? "text-destructive font-bold"
-                                  : isLowStock
-                                  ? "text-amber-600 dark:text-amber-400 font-bold"
-                                  : "text-emerald-600 dark:text-emerald-400 font-bold"
-                              }
-                            >
-                              {stockAfter} {matchedProd.unit}
-                            </span>
-                          </span>
+                      match.unitMismatch ? (
+                        <div className="text-[11px] text-amber-700 dark:text-amber-400 font-medium pt-1 border-t border-border/30">
+                          ⚠️ Stock will not change for {it.product} (unit mismatch)
                         </div>
-
-                        {isLowStock && !isInsufficient && (
-                          <div className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">
-                            ⚠️ Low stock after sale: {stockAfter} {matchedProd.unit} remaining (Reorder level: {matchedProd.reorder_level ?? 5})
+                      ) : (
+                        <div className="flex flex-col gap-1 pt-1 border-t border-border/30">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-muted-foreground">
+                              Product: <strong className="text-foreground">{matchedProd.name}</strong>
+                            </span>
+                            <span className="font-semibold tabular-nums text-foreground">
+                              Stock (estimated): {stockBefore} →{" "}
+                              <span
+                                className={
+                                  isInsufficient
+                                    ? "text-destructive font-bold"
+                                    : isLowStock
+                                    ? "text-amber-600 dark:text-amber-400 font-bold"
+                                    : "text-emerald-600 dark:text-emerald-400 font-bold"
+                                }
+                              >
+                                {stockAfter} {matchedProd.unit}
+                              </span>
+                            </span>
                           </div>
-                        )}
 
-                        {isInsufficient && (
-                          <div className="text-[11px] text-destructive font-bold">
-                            ❌ Insufficient stock (Available: {stockBefore}, Requested: {it.qty})
-                          </div>
-                        )}
+                          {isLowStock && !isInsufficient && (
+                            <div className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">
+                              ⚠️ Low stock after sale: {stockAfter} {matchedProd.unit} remaining (Reorder level: {matchedProd.reorder_level ?? 5})
+                            </div>
+                          )}
 
-                        {match.unitMismatch && (
-                          <div className="text-[11px] text-amber-700 dark:text-amber-400">
-                            ⚠️ Unit mismatch: spoken as &quot;{match.unitMismatch.spokenUnit}&quot;, but product unit is &quot;{match.unitMismatch.productUnit}&quot;. Stock change paused for this item.
-                          </div>
-                        )}
-                      </div>
+                          {isInsufficient && (
+                            <div className="text-[11px] text-destructive font-bold">
+                              ❌ Insufficient stock (Available: {stockBefore}, Requested: {effQty})
+                            </div>
+                          )}
+                        </div>
+                      )
                     )}
 
                     {match?.status === "ambiguous" && match.candidates.length > 0 && (
@@ -789,7 +901,18 @@ export function ConfirmationCard({
                         </span>
                         <button
                           type="button"
-                          onClick={() => onOpenQuickAddProduct?.(it.product, it.unit)}
+                          onClick={() => {
+                            setQuickAddModal({
+                              itemIndex: idx,
+                              name: it.product,
+                              unit: it.unit || "packet",
+                              price: "",
+                              stock: "10",
+                              reorder: "5",
+                              isSaving: false,
+                              error: null,
+                            });
+                          }}
                           className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
                         >
                           + Quick add product
@@ -829,14 +952,22 @@ export function ConfirmationCard({
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-border">
             <span className="text-[11px] text-muted-foreground">Total</span>
-            {isEditing ? (
-              <input
-                type="number"
-                min="0"
-                value={total}
-                onChange={(e) => setTotal(Math.max(0, Number(e.target.value)))}
-                className="w-full text-center font-bold text-base bg-muted/30 border border-border rounded p-1 mt-1 outline-none min-h-[40px]"
-              />
+            {isEditing || total === 0 ? (
+              <div className="flex flex-col items-center w-full mt-1">
+                <input
+                  type="number"
+                  min="0"
+                  value={total > 0 ? total : ""}
+                  onChange={(e) => setTotal(Math.max(0, Number(e.target.value)))}
+                  placeholder="Enter total"
+                  className="w-full text-center font-bold text-base bg-muted/30 border border-amber-500/50 rounded p-1 outline-none min-h-[40px] text-foreground focus:ring-2 focus:ring-primary"
+                />
+                {total === 0 && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
+                    Enter the total
+                  </span>
+                )}
+              </div>
             ) : (
               <span className="text-lg font-bold text-foreground tabular-nums">
                 ₹{total.toLocaleString("en-IN")}
@@ -1106,6 +1237,131 @@ export function ConfirmationCard({
           >
             Cancel
           </button>
+        </div>
+      )}
+
+      {!confirmedResult && currentAction === "add_sale" && total <= 0 && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold text-center bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+          ⚠️ Please enter the sale total before confirming.
+        </p>
+      )}
+
+      {/* ── Inline Quick Add Product Modal Over Card ── */}
+      {quickAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-2xl bg-card border border-border p-5 shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b border-border/40 pb-2">
+              <h4 className="text-sm font-bold text-foreground">Quick Add Product</h4>
+              <button
+                type="button"
+                onClick={() => setQuickAddModal(null)}
+                className="text-muted-foreground hover:text-foreground text-xs p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {quickAddModal.error && (
+              <div className="p-2 rounded-lg bg-destructive/10 text-destructive text-xs">
+                {quickAddModal.error}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2 text-xs">
+              <div>
+                <label className="text-[11px] text-muted-foreground font-medium">Product Name</label>
+                <input
+                  type="text"
+                  value={quickAddModal.name}
+                  onChange={(e) =>
+                    setQuickAddModal((prev) => prev ? { ...prev, name: e.target.value } : null)
+                  }
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground outline-none focus:ring-1 focus:ring-primary min-h-[40px]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] text-muted-foreground font-medium">Unit</label>
+                  <select
+                    value={quickAddModal.unit}
+                    onChange={(e) =>
+                      setQuickAddModal((prev) => prev ? { ...prev, unit: e.target.value } : null)
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground outline-none focus:ring-1 focus:ring-primary min-h-[40px]"
+                  >
+                    <option value="packet">packet</option>
+                    <option value="kg">kg</option>
+                    <option value="litre">litre</option>
+                    <option value="piece">piece</option>
+                    <option value="gram">gram</option>
+                    <option value="box">box</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] text-muted-foreground font-medium">Price (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={quickAddModal.price}
+                    onChange={(e) =>
+                      setQuickAddModal((prev) => prev ? { ...prev, price: e.target.value } : null)
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground outline-none focus:ring-1 focus:ring-primary min-h-[40px]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] text-muted-foreground font-medium">Initial Stock</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={quickAddModal.stock}
+                    onChange={(e) =>
+                      setQuickAddModal((prev) => prev ? { ...prev, stock: e.target.value } : null)
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground outline-none focus:ring-1 focus:ring-primary min-h-[40px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] text-muted-foreground font-medium">Reorder Level</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={quickAddModal.reorder}
+                    onChange={(e) =>
+                      setQuickAddModal((prev) => prev ? { ...prev, reorder: e.target.value } : null)
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground outline-none focus:ring-1 focus:ring-primary min-h-[40px]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+              <button
+                type="button"
+                onClick={() => setQuickAddModal(null)}
+                disabled={quickAddModal.isSaving}
+                className="px-3 py-2 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:bg-muted/40 min-h-[40px]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveQuickAddProduct}
+                disabled={quickAddModal.isSaving}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 min-h-[40px] flex items-center gap-1.5"
+              >
+                {quickAddModal.isSaving ? "Saving..." : "Add & Match"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

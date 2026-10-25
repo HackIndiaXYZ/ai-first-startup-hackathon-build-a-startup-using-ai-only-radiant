@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { MicButton } from "@/components/mic-button";
 import { AnimatedNumber } from "@/components/animated-number";
 import { ConfirmationCard } from "@/components/confirmation-card";
@@ -72,7 +71,6 @@ function formatIstDateTime(isoString: string): string {
 }
 
 function DashboardContent() {
-  const router = useRouter();
   // Dashboard Data states
   const [todaySales, setTodaySales] = useState<number>(0);
   const [totalUdhar, setTotalUdhar] = useState<number>(0);
@@ -878,8 +876,8 @@ function DashboardContent() {
                   setNewCustName(prefillName);
                   setActiveQuickAction("add_customer");
                 }}
-                onOpenQuickAddProduct={(prefillName) => {
-                  router.push(`/app/stock?add=true&name=${encodeURIComponent(prefillName)}`);
+                onOpenQuickAddProduct={() => {
+                  loadDashboardData();
                 }}
               />
             </section>

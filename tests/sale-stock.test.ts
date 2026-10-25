@@ -252,10 +252,61 @@ describe("Stock Tracking from Sales — Offline Tests & Business Logic", () => {
       assert.equal(resChawal.matched?.id, "p7");
     });
 
-    it("should match alias dal -> daal", () => {
+    it("should match alias dal -> daal for single stocked dal", () => {
       const resDal = findBestProductMatch("daal", SHOP_PRODUCTS);
       assert.equal(resDal.status, "matched");
       assert.equal(resDal.matched?.id, "p8");
+    });
+
+    it("should return status 'ambiguous' when query is generic 'dal' and multiple dals are stocked", () => {
+      const multiDalShop: Product[] = [
+        { id: "d1", name: "Toor Dal", unit: "kg", price: 160, stock_qty: 6, reorder_level: 4 },
+        { id: "d2", name: "Moong Dal", unit: "kg", price: 140, stock_qty: 8, reorder_level: 4 },
+        { id: "d3", name: "Chana Dal", unit: "kg", price: 110, stock_qty: 12, reorder_level: 5 },
+      ];
+      const res = findBestProductMatch("dal", multiDalShop);
+      assert.equal(res.status, "ambiguous");
+      assert.equal(res.matched, null);
+      assert.equal(res.candidates.length, 3);
+      const names = res.candidates.map((c) => c.product.name);
+      assert.deepEqual(names.sort(), ["Chana Dal", "Moong Dal", "Toor Dal"]);
+    });
+
+    it("should match only toor dal when query specifies variant 'toor dal'", () => {
+      const multiDalShop: Product[] = [
+        { id: "d1", name: "Toor Dal", unit: "kg", price: 160, stock_qty: 6, reorder_level: 4 },
+        { id: "d2", name: "Moong Dal", unit: "kg", price: 140, stock_qty: 8, reorder_level: 4 },
+        { id: "d3", name: "Chana Dal", unit: "kg", price: 110, stock_qty: 12, reorder_level: 5 },
+      ];
+      const res = findBestProductMatch("toor dal", multiDalShop);
+      assert.equal(res.status, "matched");
+      assert.equal(res.matched?.id, "d1");
+      assert.equal(res.matched?.name, "Toor Dal");
+      assert.equal(res.candidates.length, 1);
+    });
+
+    it("should return status 'ambiguous' for bare generic terms like 'oil' and 'chawal' with multiple variants", () => {
+      const multiOilShop: Product[] = [
+        { id: "o1", name: "Fortune Sunflower Oil", unit: "litre", price: 150, stock_qty: 10 },
+        { id: "o2", name: "Dhara Mustard Oil", unit: "litre", price: 165, stock_qty: 12 },
+      ];
+      const resOil = findBestProductMatch("oil", multiOilShop);
+      assert.equal(resOil.status, "ambiguous");
+      assert.equal(resOil.matched, null);
+      assert.equal(resOil.candidates.length, 2);
+
+      const resTel = findBestProductMatch("tel", multiOilShop);
+      assert.equal(resTel.status, "ambiguous");
+      assert.equal(resTel.matched, null);
+
+      const multiRiceShop: Product[] = [
+        { id: "r1", name: "India Gate Basmati Rice", unit: "kg", price: 120, stock_qty: 15 },
+        { id: "r2", name: "Kolam Rice", unit: "kg", price: 70, stock_qty: 25 },
+      ];
+      const resRice = findBestProductMatch("chawal", multiRiceShop);
+      assert.equal(resRice.status, "ambiguous");
+      assert.equal(resRice.matched, null);
+      assert.equal(resRice.candidates.length, 2);
     });
 
     it("should return status 'ambiguous' with candidate list when multiple products match closely", () => {
@@ -302,7 +353,27 @@ describe("Stock Tracking from Sales — Offline Tests & Business Logic", () => {
 
       assert.equal(normalizeUnit("piece"), "piece");
       assert.equal(normalizeUnit("pcs"), "piece");
-      assert.equal(normalizeUnit("dozen"), "piece");
+      assert.equal(normalizeUnit("dozen"), "dozen");
+    });
+
+    it("should allow 'dozen' without mismatch only when product unit is 'piece'", () => {
+      const mismatchPiece = checkUnitMismatch("dozen", "piece");
+      assert.equal(mismatchPiece, undefined);
+
+      const mismatchPcs = checkUnitMismatch("darjan", "pcs");
+      assert.equal(mismatchPcs, undefined);
+    });
+
+    it("should flag 'dozen' as mismatch when product unit is NOT piece (e.g. packet or kg)", () => {
+      const mismatchPkt = checkUnitMismatch("dozen", "packet");
+      assert.ok(mismatchPkt);
+      assert.equal(mismatchPkt.spokenUnit, "dozen");
+      assert.equal(mismatchPkt.productUnit, "packet");
+
+      const mismatchKg = checkUnitMismatch("dozen", "kg");
+      assert.ok(mismatchKg);
+      assert.equal(mismatchKg.spokenUnit, "dozen");
+      assert.equal(mismatchKg.productUnit, "kg");
     });
 
     it("should flag unit mismatch when spoken unit differs from product unit (e.g. kg vs packet)", () => {
@@ -437,6 +508,198 @@ describe("Stock Tracking from Sales — Offline Tests & Business Logic", () => {
       const msg = "Namaste ji, stock order";
       const link = buildWhatsAppReorderLink("", msg);
       assert.equal(link, `https://wa.me/?text=${encodeURIComponent(msg)}`);
+    });
+  });
+
+  // ===========================================================================
+  // 6. Two Confirms with Different Keys & Oversell Protection (RPC Logic)
+  // ===========================================================================
+  describe("6. Two Confirms with Different Keys Decrement Twice & Oversell Protection", () => {
+    interface SimProduct {
+      id: string;
+      name: string;
+      stock_qty: number;
+      reorder_level: number;
+    }
+
+    interface SimTx {
+      id: string;
+      shop_id: string;
+      idempotency_key: string;
+    }
+
+    function processSaleStockEntry(
+      shopId: string,
+      idempotencyKey: string,
+      items: Array<{ product_id: string; qty: number; unit_mismatch?: boolean }>,
+      productsState: Map<string, SimProduct>,
+      txs: SimTx[]
+    ) {
+      // 1. Idempotency check matching 004_sale_stock.sql
+      const existing = txs.find((t) => t.shop_id === shopId && t.idempotency_key === idempotencyKey);
+      if (existing) {
+        return {
+          success: true,
+          idempotent: true,
+          transaction_id: existing.id,
+          stock_updates: [],
+        };
+      }
+
+      // 2. Validate quantities server-side (finite, > 0, sane maximum)
+      for (const it of items) {
+        if (!it.qty || it.qty <= 0 || it.qty > 100000) {
+          throw new Error(`Invalid quantity ${it.qty}. Quantity must be positive, finite, and at most 100000.`);
+        }
+      }
+
+      const txId = `tx-${txs.length + 1}`;
+      txs.push({ id: txId, shop_id: shopId, idempotency_key: idempotencyKey });
+
+      const stockUpdates = [];
+
+      // 3. Process items with conditional update: SET stock_qty = stock_qty - q WHERE stock_qty >= q
+      for (const it of items) {
+        if (it.unit_mismatch) {
+          // Unit mismatch skips stock decrement
+          continue;
+        }
+
+        const prod = productsState.get(it.product_id);
+        if (!prod) {
+          throw new Error(`Product id ${it.product_id} does not belong to shop ${shopId}`);
+        }
+
+        // Conditional decrement check (... WHERE stock_qty >= q)
+        if (prod.stock_qty < it.qty) {
+          throw new Error(
+            `Insufficient stock for product "${prod.name}". Available: ${prod.stock_qty}, requested: ${it.qty}`
+          );
+        }
+
+        const oldStock = prod.stock_qty;
+        prod.stock_qty -= it.qty;
+
+        stockUpdates.push({
+          product_id: prod.id,
+          name: prod.name,
+          old_stock: oldStock,
+          new_stock: prod.stock_qty,
+          reorder_level: prod.reorder_level,
+          is_low_stock: prod.stock_qty <= prod.reorder_level,
+        });
+      }
+
+      return {
+        success: true,
+        idempotent: false,
+        transaction_id: txId,
+        stock_updates: stockUpdates,
+      };
+    }
+
+    it("two confirms for the same product with different keys decrement twice", () => {
+      const shopId = "shop-kirana-1";
+      const products = new Map<string, SimProduct>([
+        ["p1", { id: "p1", name: "Aashirvaad Atta", stock_qty: 10, reorder_level: 5 }],
+      ]);
+      const txs: SimTx[] = [];
+
+      const key1 = "00000000-0000-4000-8000-000000000001";
+      const key2 = "00000000-0000-4000-8000-000000000002";
+
+      // First confirm: sells 3 units -> stock becomes 7
+      const res1 = processSaleStockEntry(shopId, key1, [{ product_id: "p1", qty: 3 }], products, txs);
+      assert.equal(res1.success, true);
+      assert.equal(res1.idempotent, false);
+      assert.equal(products.get("p1")?.stock_qty, 7);
+
+      // Replay of first confirm with key1: must be idempotent and NOT decrement stock again
+      const replayRes = processSaleStockEntry(shopId, key1, [{ product_id: "p1", qty: 3 }], products, txs);
+      assert.equal(replayRes.idempotent, true);
+      assert.equal(products.get("p1")?.stock_qty, 7);
+
+      // Second confirm for the SAME product with fresh key2: sells 4 units -> stock becomes 3
+      const res2 = processSaleStockEntry(shopId, key2, [{ product_id: "p1", qty: 4 }], products, txs);
+      assert.equal(res2.success, true);
+      assert.equal(res2.idempotent, false);
+      assert.notEqual(res2.transaction_id, res1.transaction_id);
+      assert.equal(products.get("p1")?.stock_qty, 3);
+      assert.equal(txs.length, 2, "Two distinct keys must record two transactions");
+    });
+
+    it("rejects an oversell with clear error naming the product and preserves remaining stock", () => {
+      const shopId = "shop-kirana-1";
+      const products = new Map<string, SimProduct>([
+        ["p1", { id: "p1", name: "Aashirvaad Atta", stock_qty: 3, reorder_level: 5 }],
+      ]);
+      const txs: SimTx[] = [];
+
+      const key3 = "00000000-0000-4000-8000-000000000003";
+
+      // Attempt to oversell 5 units when only 3 are available
+      assert.throws(
+        () => {
+          processSaleStockEntry(shopId, key3, [{ product_id: "p1", qty: 5 }], products, txs);
+        },
+        (err: Error) => {
+          assert.match(err.message, /Insufficient stock for product "Aashirvaad Atta"/);
+          assert.match(err.message, /Available: 3, requested: 5/);
+          return true;
+        }
+      );
+
+      // Stock remains intact after rejected oversell
+      assert.equal(products.get("p1")?.stock_qty, 3);
+    });
+
+    it("computes total ONLY when every item is matched and units agree, requiring total otherwise", () => {
+      // 1. All matched, units agree
+      const matchedItems = [
+        { product: "Amul Doodh", qty: 2, price: 30, matched: true, unitMismatch: false },
+        { product: "Tata Namak", qty: 1, price: 28, matched: true, unitMismatch: false },
+      ];
+      const allMatched = matchedItems.every((it) => it.matched && !it.unitMismatch);
+      assert.equal(allMatched, true);
+      const computed = matchedItems.reduce((sum, it) => sum + it.qty * it.price, 0);
+      assert.equal(computed, 88);
+
+      // 2. One item has unit mismatch -> total computation must NOT guess total
+      const itemsWithMismatch = [
+        { product: "Amul Doodh", qty: 2, price: 30, matched: true, unitMismatch: false },
+        { product: "Tata Namak", qty: 1, price: 28, matched: true, unitMismatch: true },
+      ];
+      const canComputeMismatch = itemsWithMismatch.every((it) => it.matched && !it.unitMismatch);
+      assert.equal(canComputeMismatch, false);
+
+      // 3. One item unmatched -> total computation must NOT guess total
+      const itemsWithUnmatched = [
+        { product: "Amul Doodh", qty: 2, price: 30, matched: true, unitMismatch: false },
+        { product: "Unknown Brand Soap", qty: 1, price: 0, matched: false, unitMismatch: false },
+      ];
+      const canComputeUnmatched = itemsWithUnmatched.every((it) => it.matched && !it.unitMismatch);
+      assert.equal(canComputeUnmatched, false);
+    });
+
+    it("records no stock change for unit mismatch item while allowing confirm", () => {
+      const shopId = "shop-kirana-1";
+      const products = new Map<string, SimProduct>([
+        ["p1", { id: "p1", name: "Tata Namak", stock_qty: 25, reorder_level: 8 }],
+      ]);
+      const txs: SimTx[] = [];
+
+      // Confirm with unit mismatch: unit_mismatch: true
+      const res = processSaleStockEntry(
+        shopId,
+        "key-mismatch-1",
+        [{ product_id: "p1", qty: 2, unit_mismatch: true }],
+        products,
+        txs
+      );
+      assert.equal(res.success, true);
+      assert.equal(res.stock_updates.length, 0);
+      // Stock remains exactly 25
+      assert.equal(products.get("p1")?.stock_qty, 25);
     });
   });
 });

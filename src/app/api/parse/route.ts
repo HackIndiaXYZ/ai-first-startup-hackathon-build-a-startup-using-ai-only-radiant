@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
         reorder_level: number;
       }>;
 
-      const { findBestProductMatch } = await import("@/lib/product-matcher");
+      const { findBestProductMatch, resolveEffectiveItemQty } = await import("@/lib/product-matcher");
 
       productMatches = parseResult.data.items.map((it) => {
         const match = findBestProductMatch(it.product, productsList, it.unit);
@@ -140,21 +140,41 @@ export async function POST(req: NextRequest) {
         };
       });
 
-      // Compute total from product prices if total is missing or 0
+      // Compute from prices ONLY when EVERY item is matched, units agree, and no unit mismatch exists
+      const allItemsMatchedWithoutMismatch =
+        productMatches.length > 0 &&
+        productMatches.every(
+          (pm) =>
+            pm.match.status === "matched" &&
+            pm.match.matched !== null &&
+            !pm.match.unitMismatch &&
+            Number(pm.match.matched.price || 0) > 0
+        );
+
       let computedTotal = 0;
-      let matchedCount = 0;
-      for (const pm of productMatches) {
-        if (pm.match.status === "matched" && pm.match.matched) {
-          const unitPrice = Number(pm.match.matched.price || 0);
-          computedTotal += pm.item.qty * unitPrice;
-          matchedCount++;
-        }
+      if (allItemsMatchedWithoutMismatch) {
+        computedTotal = productMatches.reduce((sum, pm) => {
+          const unitPrice = Number(pm.match.matched?.price || 0);
+          const effectiveQty = resolveEffectiveItemQty(pm.item.qty, pm.item.unit, pm.match.matched?.unit);
+          return sum + (effectiveQty * unitPrice);
+        }, 0);
       }
 
       const spokenTotal = Number(parseResult.data.total || 0);
-      if (spokenTotal === 0 && computedTotal > 0) {
-        parseResult.data.total = computedTotal;
-      } else if (spokenTotal > 0 && computedTotal > 0 && matchedCount === parseResult.data.items.length && spokenTotal !== computedTotal) {
+
+      if (spokenTotal === 0) {
+        if (allItemsMatchedWithoutMismatch && computedTotal > 0) {
+          parseResult.data.total = computedTotal;
+        } else {
+          // Never save a guessed total: require user to enter total
+          parseResult.data.total = 0;
+        }
+      } else if (
+        spokenTotal > 0 &&
+        allItemsMatchedWithoutMismatch &&
+        computedTotal > 0 &&
+        spokenTotal !== computedTotal
+      ) {
         totalMismatchWarning = `Spoken total (Rs ${spokenTotal}) differs from computed items total (Rs ${computedTotal}).`;
       }
     }

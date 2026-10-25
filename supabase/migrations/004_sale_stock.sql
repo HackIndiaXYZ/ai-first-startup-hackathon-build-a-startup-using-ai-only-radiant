@@ -1,9 +1,12 @@
 -- =============================================================================
--- DukaanAI Migration 004: Enhanced Sale Stock Tracking & Telemetry
--- Description: Updates process_ledger_entry to aggregate and return stock_updates
--- (old_stock, new_stock, reorder_level, is_low_stock) within the atomic transaction.
+-- DukaanAI Migration 004: Enhanced Sale Stock Tracking & Atomic Verification
+-- Description: Updates process_ledger_entry to decrement stock with one conditional
+-- UPDATE per item, reject foreign product IDs, validate qty server-side, and return
+-- structured stock_updates while preserving exact function signature & return shape.
 -- Security: SECURITY INVOKER, search_path = public, grants only to authenticated.
 -- =============================================================================
+
+set check_function_bodies = off;
 
 create or replace function public.process_ledger_entry(
     p_shop_id uuid,
@@ -33,10 +36,12 @@ declare
     v_prod_name text;
     v_real_prod_name text;
     v_prod_stock numeric(10,2);
+    v_new_stock numeric(10,2);
     v_prod_reorder numeric(10,2);
     v_item_qty numeric(10,2);
     v_item_price numeric(10,2);
     v_qty_change numeric(10,2);
+    v_row_count int;
     v_unmatched_items jsonb := '[]'::jsonb;
     v_stock_updates jsonb := '[]'::jsonb;
 begin
@@ -102,14 +107,23 @@ begin
               and lower(name) = lower(v_customer_name)
             limit 1;
 
+            -- Auto-create customer if requested and not found
             if v_customer_id is null and (p_action->>'create_customer')::boolean is true then
-                insert into public.customers (shop_id, name, phone, notes)
-                values (p_shop_id, v_customer_name, p_action->>'customer_phone', 'Added via voice/sale')
-                returning id into v_customer_id;
+                insert into public.customers (
+                    shop_id,
+                    name,
+                    phone,
+                    notes
+                ) values (
+                    p_shop_id,
+                    v_customer_name,
+                    p_action->>'phone',
+                    p_action->>'notes'
+                ) returning id into v_customer_id;
             end if;
         end if;
 
-        -- Insert transaction record with idempotency key
+        -- Insert transaction
         insert into public.transactions (
             shop_id,
             customer_id,
@@ -135,19 +149,42 @@ begin
             for v_item in select * from jsonb_array_elements(p_action->'items')
             loop
                 v_prod_name := trim(coalesce(v_item->>'product', ''));
-                v_item_qty := coalesce((v_item->>'qty')::numeric, 1);
+                v_item_qty := (v_item->>'qty')::numeric;
                 v_item_price := coalesce((v_item->>'unit_price')::numeric, 0);
                 v_prod_id := null;
 
+                -- If unit mismatch, record no stock change for this item
+                if (v_item->>'unit_mismatch')::boolean is true then
+                    v_unmatched_items := v_unmatched_items || jsonb_build_object(
+                        'product', v_prod_name,
+                        'qty', v_item_qty,
+                        'reason', 'unit_mismatch'
+                    );
+                    continue;
+                end if;
+
+                -- Validate qty server-side (finite, > 0, sane maximum)
+                if v_item_qty is null or v_item_qty <= 0 or v_item_qty > 100000 then
+                    raise exception 'Invalid quantity % for item "%". Quantity must be positive, finite, and at most 100000.',
+                        coalesce(v_item->>'qty', '0'), v_prod_name;
+                end if;
+
+                -- Reject any product id that does not belong to p_shop_id
                 if v_item ? 'product_id' and v_item->>'product_id' <> '' then
-                    select id, stock_qty, coalesce(reorder_level, 5), name
-                    into v_prod_id, v_prod_stock, v_prod_reorder, v_real_prod_name
+                    v_prod_id := (v_item->>'product_id')::uuid;
+                    select id, name, coalesce(reorder_level, 5)
+                    into v_prod_id, v_real_prod_name, v_prod_reorder
                     from public.products
-                    where id = (v_item->>'product_id')::uuid
+                    where id = v_prod_id
                       and shop_id = p_shop_id;
+
+                    if v_prod_id is null then
+                        raise exception 'Product ID % does not belong to shop %',
+                            (v_item->>'product_id'), p_shop_id;
+                    end if;
                 elsif v_prod_name <> '' then
-                    select id, stock_qty, coalesce(reorder_level, 5), name
-                    into v_prod_id, v_prod_stock, v_prod_reorder, v_real_prod_name
+                    select id, name, coalesce(reorder_level, 5)
+                    into v_prod_id, v_real_prod_name, v_prod_reorder
                     from public.products
                     where shop_id = p_shop_id
                       and lower(name) = lower(v_prod_name)
@@ -155,15 +192,21 @@ begin
                 end if;
 
                 if v_prod_id is not null then
-                    -- Matched product: validate stock
-                    if (v_prod_stock - v_item_qty) < 0 then
-                        raise exception 'Insufficient stock for product "%". Available: %, requested: %',
-                            coalesce(v_real_prod_name, v_prod_name), v_prod_stock, v_item_qty;
-                    end if;
-
+                    -- Decrement with ONE conditional UPDATE per item
                     update public.products
                     set stock_qty = stock_qty - v_item_qty
-                    where id = v_prod_id;
+                    where id = v_prod_id
+                      and shop_id = p_shop_id
+                      and stock_qty >= v_item_qty
+                    returning stock_qty into v_new_stock;
+
+                    get diagnostics v_row_count = row_count;
+                    if v_row_count = 0 then
+                        raise exception 'Insufficient stock for product "%". Requested: %, but available stock is insufficient.',
+                            coalesce(v_real_prod_name, v_prod_name), v_item_qty;
+                    end if;
+
+                    v_prod_stock := v_new_stock + v_item_qty;
 
                     insert into public.transaction_items (
                         transaction_id,
@@ -182,9 +225,9 @@ begin
                         'product_id', v_prod_id,
                         'name', coalesce(v_real_prod_name, v_prod_name),
                         'old_stock', v_prod_stock,
-                        'new_stock', v_prod_stock - v_item_qty,
+                        'new_stock', v_new_stock,
                         'reorder_level', v_prod_reorder,
-                        'is_low_stock', (v_prod_stock - v_item_qty) <= v_prod_reorder
+                        'is_low_stock', v_new_stock <= v_prod_reorder
                     );
                 else
                     -- Unmatched item: flagged without stock change
@@ -243,7 +286,7 @@ begin
             p_shop_id,
             v_customer_id,
             'payment',
-            0,
+            v_amount,
             v_amount,
             v_raw_input,
             p_idempotency_key
@@ -256,60 +299,62 @@ begin
         v_prod_name := trim(coalesce(p_action->>'product', ''));
         v_qty_change := coalesce((p_action->>'qty_change')::numeric, 0);
 
+        if v_qty_change = 0 then
+            raise exception 'Quantity change cannot be zero.';
+        end if;
+
         if p_action->>'product_id' is not null and p_action->>'product_id' <> '' then
-            select id, stock_qty, coalesce(reorder_level, 5), name
-            into v_prod_id, v_prod_stock, v_prod_reorder, v_real_prod_name
+            v_prod_id := (p_action->>'product_id')::uuid;
+            select id, stock_qty, name
+            into v_prod_id, v_prod_stock, v_real_prod_name
             from public.products
-            where id = (p_action->>'product_id')::uuid
+            where id = v_prod_id
               and shop_id = p_shop_id;
-        else
-            select id, stock_qty, coalesce(reorder_level, 5), name
-            into v_prod_id, v_prod_stock, v_prod_reorder, v_real_prod_name
+
+            if v_prod_id is null then
+                raise exception 'Product ID % does not belong to shop %',
+                    (p_action->>'product_id'), p_shop_id;
+            end if;
+        elsif v_prod_name <> '' then
+            select id, stock_qty, name
+            into v_prod_id, v_prod_stock, v_real_prod_name
             from public.products
             where shop_id = p_shop_id
               and lower(name) = lower(v_prod_name)
             limit 1;
         end if;
 
-        -- NEVER auto-create products!
         if v_prod_id is null then
-            raise exception 'Product "%" does not exist in inventory.', v_prod_name;
+            raise exception 'Product "%" not found in shop inventory.', v_prod_name;
         end if;
 
         if (v_prod_stock + v_qty_change) < 0 then
-            raise exception 'Stock cannot be negative. Product "%" currently has %, cannot reduce by %',
-                coalesce(v_real_prod_name, v_prod_name), v_prod_stock, abs(v_qty_change);
+            raise exception 'Stock cannot be negative. Current: %, change: %',
+                v_prod_stock, v_qty_change;
         end if;
 
         update public.products
         set stock_qty = stock_qty + v_qty_change
         where id = v_prod_id
-        returning stock_qty into v_prod_stock;
+          and shop_id = p_shop_id;
 
-        v_stock_updates := v_stock_updates || jsonb_build_object(
-            'product_id', v_prod_id,
-            'name', coalesce(v_real_prod_name, v_prod_name),
-            'old_stock', v_prod_stock - v_qty_change,
-            'new_stock', v_prod_stock,
-            'reorder_level', v_prod_reorder,
-            'is_low_stock', v_prod_stock <= v_prod_reorder
-        );
+        v_prod_stock := v_prod_stock + v_qty_change;
 
     -- -------------------------------------------------------------------------
     -- 4. ADD CUSTOMER
     -- -------------------------------------------------------------------------
     elsif v_action_type = 'add_customer' then
         v_customer_name := trim(coalesce(p_action->>'name', ''));
-        v_customer_phone := p_action->>'phone';
+        v_customer_phone := nullif(trim(coalesce(p_action->>'phone', '')), '');
 
         if v_customer_name = '' then
-            raise exception 'Customer name cannot be empty';
+            raise exception 'Customer name cannot be empty.';
         end if;
 
         select id into v_customer_id
         from public.customers
         where shop_id = p_shop_id
-              and lower(name) = lower(v_customer_name)
+          and lower(name) = lower(v_customer_name)
         limit 1;
 
         if v_customer_id is null then
@@ -341,8 +386,8 @@ begin
         'customer_id', v_customer_id,
         'customer_balance', v_new_balance,
         'stock_qty', v_prod_stock,
-        'stock_updates', v_stock_updates,
-        'unmatched_items', v_unmatched_items
+        'unmatched_items', v_unmatched_items,
+        'stock_updates', v_stock_updates
     );
 end;
 $$;

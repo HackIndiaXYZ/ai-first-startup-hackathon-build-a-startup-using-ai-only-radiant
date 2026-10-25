@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useCallback, useMemo } from "react";
+import { Suspense, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Package, Search, AlertTriangle, CheckCircle2, ArrowLeft, Plus } from "lucide-react";
@@ -54,6 +54,10 @@ function StockContent() {
   const [supplierPhone, setSupplierPhone] = useState("");
   const [reorderMessage, setReorderMessage] = useState("");
   const [isMessageCopied, setIsMessageCopied] = useState(false);
+
+  // Idempotency keys: fresh per press, reused only for retry of the same press
+  const restockRetryKeysRef = useRef<Map<string, string>>(new Map());
+  const adjustRetryKeyRef = useRef<string | null>(null);
 
   const loadProducts = useCallback(async (showLoading = false) => {
     if (showLoading) setIsLoading(true);
@@ -178,6 +182,8 @@ function StockContent() {
     const targetProduct = products.find((p) => p.id === selectedProductId);
     if (!targetProduct) return;
 
+    if (isSubmittingAdjust) return;
+
     if (targetProduct.stock_qty + deltaNum < 0) {
       setErrorMsg(
         `Invalid quantity: Current stock is only ${targetProduct.stock_qty} ${targetProduct.unit}. Stock cannot become negative.`
@@ -188,8 +194,13 @@ function StockContent() {
     setIsSubmittingAdjust(true);
     setErrorMsg(null);
 
+    // One fresh key per press, reused only for retry of the same press
+    let idempotencyKey = adjustRetryKeyRef.current;
+    if (!idempotencyKey) {
+      idempotencyKey = generateIdempotencyKey();
+    }
+
     try {
-      const idempotencyKey = generateIdempotencyKey();
       const res = await fetch("/api/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -205,8 +216,10 @@ function StockContent() {
 
       const json = await res.json();
       if (!res.ok) {
+        adjustRetryKeyRef.current = idempotencyKey; // reuse on retry
         setErrorMsg(formatApiError(json));
       } else {
+        adjustRetryKeyRef.current = null; // clear on success
         const deltaFormatted = deltaNum > 0 ? `+${deltaNum}` : `${deltaNum}`;
         setSuccessMsg(
           `${targetProduct.name} stock updated (${deltaFormatted} ${targetProduct.unit}).`
@@ -217,6 +230,7 @@ function StockContent() {
         setTimeout(() => setSuccessMsg(null), 4000);
       }
     } catch (err: unknown) {
+      adjustRetryKeyRef.current = idempotencyKey;
       setErrorMsg(formatApiError(err));
     } finally {
       setIsSubmittingAdjust(false);
@@ -224,12 +238,18 @@ function StockContent() {
   };
 
   const handleOneTapRestock = async (product: ProductItem) => {
+    if (restockingId === product.id) return; // disabled while in flight
     const suggestedQty = calculateSuggestedReorderQty(product.stock_qty, product.reorder_level);
     setRestockingId(product.id);
     setErrorMsg(null);
 
+    // One fresh key per press, reused ONLY for a retry of the same failed press
+    let idempotencyKey = restockRetryKeysRef.current.get(product.id);
+    if (!idempotencyKey) {
+      idempotencyKey = generateIdempotencyKey();
+    }
+
     try {
-      const idempotencyKey = generateIdempotencyKey();
       const res = await fetch("/api/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -245,8 +265,10 @@ function StockContent() {
 
       const json = await res.json();
       if (!res.ok) {
+        restockRetryKeysRef.current.set(product.id, idempotencyKey); // reuse on retry
         setErrorMsg(formatApiError(json));
       } else {
+        restockRetryKeysRef.current.delete(product.id); // clear on success
         setSuccessMsg(
           `${product.name} restocked (+${suggestedQty} ${product.unit}).`
         );
@@ -254,6 +276,7 @@ function StockContent() {
         setTimeout(() => setSuccessMsg(null), 4000);
       }
     } catch (err: unknown) {
+      restockRetryKeysRef.current.set(product.id, idempotencyKey);
       setErrorMsg(formatApiError(err));
     } finally {
       setRestockingId(null);
@@ -761,6 +784,7 @@ function StockContent() {
                 onClick={() => {
                   setSelectedProductId(null);
                   setStockDelta("");
+                  adjustRetryKeyRef.current = null;
                 }}
                 className="text-xs text-muted-foreground hover:text-foreground cursor-pointer px-2 py-1"
                 aria-label={STRINGS.common.close}
@@ -795,6 +819,7 @@ function StockContent() {
                   onClick={() => {
                     setSelectedProductId(null);
                     setStockDelta("");
+                    adjustRetryKeyRef.current = null;
                   }}
                   className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted min-h-[48px] cursor-pointer"
                 >

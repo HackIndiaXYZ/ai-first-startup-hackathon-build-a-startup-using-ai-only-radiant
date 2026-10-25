@@ -351,39 +351,6 @@ export async function executeLedgerEntry(
           });
         }
       }
-    } else if (action.action === "add_sale" && action.items) {
-      // Local fallback calculation when RPC does not return stock_updates array
-      for (const item of action.items) {
-        const itemObj = item as { product: string; product_id?: string; qty: number };
-        const matchedProd = itemObj.product_id
-          ? productsData?.find((p) => p.id === itemObj.product_id)
-          : productEntityMap[item.product.toLowerCase()];
-
-        if (matchedProd) {
-          const oldStock = Number(matchedProd.stock_qty);
-          const newStock = oldStock - item.qty;
-          const reorderLevel = Number(matchedProd.reorder_level || 5);
-          const isLow = newStock <= reorderLevel;
-
-          stockUpdates.push({
-            product_id: matchedProd.id,
-            name: matchedProd.name,
-            old_stock: oldStock,
-            new_stock: newStock,
-            reorder_level: reorderLevel,
-            is_low_stock: isLow,
-          });
-
-          if (isLow) {
-            lowStockProducts.push({
-              product_id: matchedProd.id,
-              name: matchedProd.name,
-              current_stock: newStock,
-              reorder_level: reorderLevel,
-            });
-          }
-        }
-      }
     }
 
     return {

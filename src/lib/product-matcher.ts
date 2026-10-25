@@ -37,7 +37,8 @@ export function normalizeUnit(rawUnit?: string | null): string {
   if (["kg", "kilo", "kilos", "kilogram", "kilograms"].includes(clean)) return "kg";
   if (["pkt", "packet", "packets", "pouch", "pouches", "pack", "packs"].includes(clean)) return "packet";
   if (["ltr", "litre", "litres", "liter", "liters"].includes(clean)) return "litre";
-  if (["pc", "pcs", "piece", "pieces", "darjan", "dozen"].includes(clean)) return "piece";
+  if (["pc", "pcs", "piece", "pieces"].includes(clean)) return "piece";
+  if (["darjan", "dozen", "doz"].includes(clean)) return "dozen";
   if (["gm", "gms", "gram", "grams", "g"].includes(clean)) return "gram";
   if (["dabba", "box", "can"].includes(clean)) return "box";
 
@@ -62,17 +63,17 @@ export function normalizeProductName(name: string): {
   return { clean, tokens };
 }
 
-// Small alias map of staple Indian grocery terms in Roman Hinglish
+// Only spelling and language synonyms (no variants)
 const ALIAS_GROUPS: string[][] = [
-  ["atta", "aata", "wheat flour", "flour", "gehu ka atta"],
-  ["doodh", "milk", "dudh"],
-  ["chini", "sugar", "cheeni", "shakkar"],
-  ["tel", "oil", "tail", "sarson tel", "mustard oil", "refined oil"],
-  ["namak", "salt", "tata namak"],
-  ["chawal", "rice", "basmati", "chawal rice"],
-  ["dal", "daal", "dhal", "pulses", "toor dal", "moong dal", "chana dal", "urad dal"],
-  ["chai", "tea", "chai patti"],
-  ["anda", "egg", "eggs", "ande"],
+  ["atta", "aata"],
+  ["doodh", "dudh", "milk"],
+  ["chini", "cheeni", "sugar"],
+  ["namak", "salt"],
+  ["chawal", "rice"],
+  ["tel", "oil", "tail"],
+  ["dal", "daal", "dhal"],
+  ["chai", "tea"],
+  ["anda", "ande", "egg", "eggs"],
   ["biscuit", "biscuits"],
 ];
 
@@ -83,6 +84,35 @@ for (const group of ALIAS_GROUPS) {
   for (const synonym of group) {
     CANONICAL_ALIAS_MAP[synonym.toLowerCase()] = canonical;
   }
+}
+
+// Generic category words where bare terms without variant words must be treated as ambiguous
+const GENERIC_CATEGORY_TERMS = new Set([
+  "dal",
+  "daal",
+  "dhal",
+  "tel",
+  "oil",
+  "tail",
+  "chawal",
+  "rice",
+]);
+
+export function isDozenUnit(unit?: string | null): boolean {
+  if (!unit) return false;
+  const clean = unit.trim().toLowerCase();
+  return ["dozen", "darjan", "doz", "dozens"].includes(clean);
+}
+
+export function resolveEffectiveItemQty(
+  qty: number,
+  spokenUnit?: string | null,
+  productUnit?: string | null
+): number {
+  if (isDozenUnit(spokenUnit) && normalizeUnit(productUnit) === "piece") {
+    return qty * 12;
+  }
+  return qty;
 }
 
 /**
@@ -121,6 +151,7 @@ function levenshteinDistance(a: string, b: string): number {
 /**
  * Checks whether spoken unit matches product unit.
  * If units differ, returns the mismatch object, otherwise undefined.
+ * 'dozen': 12 only when the product unit is piece, otherwise a mismatch.
  */
 export function checkUnitMismatch(
   spokenUnit?: string | null,
@@ -130,6 +161,17 @@ export function checkUnitMismatch(
 
   const normSpoken = normalizeUnit(spokenUnit);
   const normProduct = normalizeUnit(productUnit);
+
+  // 'dozen': 12 only when the product unit is piece, otherwise a mismatch
+  if (normSpoken === "dozen") {
+    if (normProduct === "piece") {
+      return undefined;
+    }
+    return {
+      spokenUnit: spokenUnit.trim(),
+      productUnit: productUnit.trim(),
+    };
+  }
 
   if (normSpoken && normProduct && normSpoken !== normProduct) {
     return {
@@ -145,12 +187,12 @@ export function checkUnitMismatch(
  * Matches an item product name spoken or typed by the user against existing shop inventory.
  *
  * Rules:
- * 1. Normalize query and product names (trim, lower, remove punctuation).
- * 2. Check small alias map (atta/aata, doodh/milk, chini/sugar, tel/oil, namak/salt, chawal/rice, dal).
- * 3. Calculate fuzzy score.
- * 4. Return status: "matched", "ambiguous", or "unmatched".
- * 5. NEVER auto-create products!
- * 6. If spoken unit differs from product unit, flag it instead of guessing.
+ * 1. Normalize query and product names.
+ * 2. Pure spelling and language synonyms only.
+ * 3. Generic terms ("dal", "tel/oil", "chawal/rice") return ambiguous if multiple variants are stocked.
+ * 4. Brand/variant words in the query narrow the match, never widen it.
+ * 5. Return status: "matched", "ambiguous", or "unmatched".
+ * 6. NEVER auto-create products!
  */
 export function findBestProductMatch(
   query: string,
@@ -173,6 +215,16 @@ export function findBestProductMatch(
   const qCanonTokens = normQuery.tokens.map(getCanonicalProductTerm);
   const qCanonString = qCanonTokens.join(" ");
 
+  // Check if query is purely a generic category word
+  const isBareGeneric =
+    qCanonTokens.length > 0 &&
+    qCanonTokens.every((token) => GENERIC_CATEGORY_TERMS.has(token));
+
+  // Extract non-generic tokens (brand / variant words)
+  const queryVariantTokens = qCanonTokens.filter(
+    (token) => !GENERIC_CATEGORY_TERMS.has(token)
+  );
+
   const candidates: ProductCandidate[] = [];
 
   for (const product of products) {
@@ -180,48 +232,83 @@ export function findBestProductMatch(
     const pCanonTokens = normProd.tokens.map(getCanonicalProductTerm);
     const pCanonString = pCanonTokens.join(" ");
 
+    // Brand/variant words in the product name must narrow the match, never widen it.
+    // If the query specified variant/brand words, product MUST contain all of them!
+    if (queryVariantTokens.length > 0) {
+      const hasAllVariants = queryVariantTokens.every((vt) =>
+        pCanonTokens.some(
+          (pt) =>
+            pt === vt ||
+            (pt.length > 3 && vt.length > 3 && levenshteinDistance(pt, vt) <= 1)
+        )
+      );
+      if (!hasAllVariants) {
+        continue; // Exclude products that do not match the specified variant/brand
+      }
+    }
+
     let score = 0;
 
     // 1. Exact raw match
     if (normQuery.clean === normProd.clean) {
       score = 1.0;
     }
-    // 2. Exact canonical alias string match (e.g. query "milk" == product "doodh" -> both canonical "doodh")
+    // 2. Exact canonical alias string match
     else if (qCanonString === pCanonString) {
       score = 0.98;
     }
-    // 3. Token containment with alias resolution
+    // 3. Token containment
     else if (qCanonTokens.length > 0 && pCanonTokens.length > 0) {
-      // Check if all query tokens are present in product name
-      // e.g. query "atta" in product "Aashirvaad Atta" -> query is subset
-      const isQuerySubset = qCanonTokens.every((qt) => pCanonTokens.includes(qt));
+      const isQuerySubset = qCanonTokens.every((qt) =>
+        pCanonTokens.some(
+          (pt) =>
+            pt === qt ||
+            (pt.length > 3 && qt.length > 3 && levenshteinDistance(pt, qt) <= 1)
+        )
+      );
+
       if (isQuerySubset) {
-        // If single token query in a multi-token product name (e.g. "atta" in "Aashirvaad Atta")
-        score = qCanonTokens.length === 1 && pCanonTokens.length > 1 ? 0.88 : 0.94;
+        score = isBareGeneric
+          ? 0.85
+          : qCanonTokens.length === pCanonTokens.length
+          ? 0.96
+          : 0.92;
       } else {
-        // Check if all product tokens are present in query
-        const isProdSubset = pCanonTokens.every((pt) => qCanonTokens.includes(pt));
+        const isProdSubset = pCanonTokens.every((pt) =>
+          qCanonTokens.some(
+            (qt) =>
+              qt === pt ||
+              (pt.length > 3 && qt.length > 3 && levenshteinDistance(qt, pt) <= 1)
+          )
+        );
         if (isProdSubset) {
           score = 0.89;
         }
       }
 
-      // Check for partial token overlap if no full subset
-      if (score === 0) {
-        const overlapCount = qCanonTokens.filter((qt) => pCanonTokens.includes(qt)).length;
+      if (score === 0 && !isBareGeneric && queryVariantTokens.length === 0) {
+        const overlapCount = qCanonTokens.filter((qt) =>
+          pCanonTokens.includes(qt)
+        ).length;
         if (overlapCount > 0) {
-          score = Number((0.60 + (overlapCount / Math.max(qCanonTokens.length, pCanonTokens.length)) * 0.25).toFixed(2));
+          score = Number(
+            (
+              0.60 +
+              (overlapCount / Math.max(qCanonTokens.length, pCanonTokens.length)) *
+                0.25
+            ).toFixed(2)
+          );
         }
       }
     }
 
-    // 4. Fuzzy Levenshtein similarity on normalized stems if score still 0
-    if (score === 0) {
+    // 4. Fuzzy Levenshtein similarity on normalized stems only if non-generic
+    if (score === 0 && !isBareGeneric && queryVariantTokens.length === 0) {
       const maxLen = Math.max(normQuery.clean.length, normProd.clean.length);
       if (maxLen > 2) {
         const dist = levenshteinDistance(normQuery.clean, normProd.clean);
         const sim = 1 - dist / maxLen;
-        if (sim >= 0.70) {
+        if (sim >= 0.75) {
           score = Number((sim * 0.80).toFixed(2));
         }
       }
@@ -246,14 +333,25 @@ export function findBestProductMatch(
     };
   }
 
+  // Bare generic word ("dal", "tel/oil", "chawal/rice") with several stocked variants:
+  // MUST return ambiguous with candidate picker among the stocked variants
+  if (isBareGeneric && candidates.length > 1) {
+    return {
+      status: "ambiguous",
+      matched: null,
+      candidates,
+      score: candidates[0].score,
+      originalQuery: trimmed,
+      normalizedQuery: normQuery.clean,
+    };
+  }
+
   const top = candidates[0];
 
-  // Disambiguation check:
-  // If multiple candidates have similar high scores (e.g. query "atta" with "Aashirvaad Atta" and "Fortune Atta")
+  // Disambiguation check for close score ties
   if (candidates.length > 1) {
     const second = candidates[1];
-    // If top candidates are tied or score difference is tight (< 0.12)
-    if (Math.abs(top.score - second.score) < 0.12 || top.score < 0.85) {
+    if (Math.abs(top.score - second.score) < 0.10 || top.score < 0.85) {
       return {
         status: "ambiguous",
         matched: null,
@@ -265,7 +363,6 @@ export function findBestProductMatch(
     }
   }
 
-  // Single clear candidate with solid score (>= 0.85)
   if (top.score >= 0.85) {
     const unitMismatch = checkUnitMismatch(spokenUnit, top.product.unit);
     return {
@@ -279,7 +376,6 @@ export function findBestProductMatch(
     };
   }
 
-  // Weak score (< 0.85) is marked ambiguous for shopkeeper confirmation
   return {
     status: "ambiguous",
     matched: null,
