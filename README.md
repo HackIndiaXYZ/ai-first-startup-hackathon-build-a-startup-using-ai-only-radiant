@@ -4,6 +4,7 @@
 > *A voice-first Hinglish AI co-pilot for 13M+ Indian kirana store owners.*
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-dukaanai--two.vercel.app-7c3aed?style=for-the-badge&logo=vercel)](https://dukaanai-two.vercel.app)
+[![YouTube Demo](https://img.shields.io/badge/YouTube-Demo%20Video-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=14fvpreQ1Dw)
 [![Built for](https://img.shields.io/badge/HackIndia%202026-AI--First%20Startup-ff9933?style=for-the-badge)](https://dukaanai-two.vercel.app)
 [![Next.js 16](https://img.shields.io/badge/Next.js%2016-App%20Router-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![Google Gemini](https://img.shields.io/badge/Google%20Gemini-3.5%20Flash-4285F4?style=for-the-badge&logo=google)](https://ai.google.dev/)
@@ -20,7 +21,7 @@
 | **Sign In / Demo** | [https://dukaanai-two.vercel.app/login](https://dukaanai-two.vercel.app/login) | Google OAuth Sign-In or 1-Click Instant Demo Login (no signup needed) |
 | **Production Alias** | [https://dukaanai-himanshu-rawat.vercel.app](https://dukaanai-himanshu-rawat.vercel.app) | Verified Vercel production alias |
 | **AI Usage Report** | [AI_USAGE.md](AI_USAGE.md) | Full prompt log, architecture decisions, tools used, errors caught, and test metrics |
-| **Demo Video** | [Watch Demo Video (3-5 min)](https://dukaanai-two.vercel.app) | *Video walkthrough placeholder for HackIndia judges* |
+| **Demo Video** | [Watch Demo Video on YouTube (4 min)](https://www.youtube.com/watch?v=14fvpreQ1Dw) | Complete live walkthrough of spoken Hinglish entry, AI parsing, 3-way confirmation, ledger atomicity, and WhatsApp reminder |
 
 ---
 
@@ -154,6 +155,12 @@ flowchart TD
 ---
 
 ## Live Demo & Judge Instructions
+
+### Official YouTube Demo Walkthrough (4-minute video)
+Watch the complete end-to-end workflow demonstrating voice speech transcription, Hinglish AI parsing, 3-way confirmation safety, atomic PostgreSQL ledger updates, PDF invoicing, and 1-tap WhatsApp payment reminders:  
+🎥 **[Watch DukaanAI Demo on YouTube](https://www.youtube.com/watch?v=14fvpreQ1Dw)** (`https://www.youtube.com/watch?v=14fvpreQ1Dw`)
+
+[![DukaanAI Demo Walkthrough](https://img.shields.io/badge/YouTube-Watch%20Demo%20Video%20(4%20min)-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=14fvpreQ1Dw)
 
 ### Zero-Friction Demo Access
 HackIndia judges can explore the complete application without creating an account:

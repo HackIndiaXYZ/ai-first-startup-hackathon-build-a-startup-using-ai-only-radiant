@@ -43,17 +43,31 @@ export function HeroSection() {
             </div>
 
             {/* CTAs */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto pt-2">
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto pt-2">
               <Suspense fallback={<DemoButtonSkeleton size="lg" />}>
                 <DemoAuthButton size="lg" />
               </Suspense>
 
               <a
-                href="#workflow"
-                className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-2xl border border-white/15 bg-white/[0.03] hover:bg-white/[0.07] text-white text-sm font-semibold transition-all hover:border-white/30 min-h-[48px] sm:min-h-[52px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
+                href="https://www.youtube.com/watch?v=14fvpreQ1Dw"
+                target="_blank"
+                rel="noopener noreferrer"
+                id="hero-watch-demo-button"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl border border-red-500/30 bg-red-600/10 hover:bg-red-600/20 text-white text-sm font-semibold transition-all hover:border-red-500/50 min-h-[48px] sm:min-h-[52px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
               >
-                <span>See workflow</span>
-                <span className="ml-1.5 text-white/60">↓</span>
+                <svg className="w-4 h-4 fill-current text-red-500" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                </svg>
+                <span>Watch Demo (4 min)</span>
+                <span className="text-white/60">↗</span>
+              </a>
+
+              <a
+                href="#workflow"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-3.5 rounded-2xl border border-white/15 bg-white/[0.03] hover:bg-white/[0.07] text-white/80 hover:text-white text-sm font-semibold transition-all hover:border-white/30 min-h-[48px] sm:min-h-[52px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
+              >
+                <span>Workflow</span>
+                <span className="ml-1 text-white/50">↓</span>
               </a>
             </div>
 
