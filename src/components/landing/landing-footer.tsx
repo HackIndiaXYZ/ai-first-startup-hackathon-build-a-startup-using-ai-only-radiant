@@ -46,6 +46,21 @@ export function LandingFooter() {
               </span>
             </div>
 
+            {/* YouTube Demo Video Button */}
+            <a
+              href="https://www.youtube.com/watch?v=14fvpreQ1Dw"
+              target="_blank"
+              rel="noopener noreferrer"
+              id="footer-youtube-demo-link"
+              className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600/15 hover:bg-red-600/25 text-red-200 text-xs font-semibold border border-red-500/30 hover:border-red-500/50 transition-all min-h-[48px] min-w-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611] w-full sm:w-auto"
+            >
+              <svg className="w-4 h-4 fill-current text-red-500" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+              <span>Demo Video</span>
+              <span className="text-white/40">↗</span>
+            </a>
+
             {/* GitHub Repo Button (min-height >= 48px, focus ring) */}
             <a
               href={GITHUB_REPO_URL}
@@ -99,6 +114,15 @@ export function LandingFooter() {
               className="hover:text-white transition-colors py-3 px-2.5 inline-flex items-center min-h-[48px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
             >
               Highlights
+            </a>
+            <a
+              href="https://www.youtube.com/watch?v=14fvpreQ1Dw"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-white transition-colors py-3 px-2.5 inline-flex items-center gap-1 min-h-[48px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
+            >
+              <span>Demo Video</span>
+              <span className="text-white/40 text-[10px]">↗</span>
             </a>
           </nav>
 

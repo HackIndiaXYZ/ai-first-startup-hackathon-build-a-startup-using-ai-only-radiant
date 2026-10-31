@@ -3,6 +3,7 @@
 **HackIndia 2026 AI-First Startup Hackathon**  
 **Track:** Build a Startup Using AI Only (Team: RADIANT)  
 **Project:** DukaanAI — Voice-First Hinglish AI Co-Pilot for Indian Kirana Stores  
+**Demo Video:** [https://www.youtube.com/watch?v=14fvpreQ1Dw](https://www.youtube.com/watch?v=14fvpreQ1Dw) (4-minute video walkthrough)  
 
 ---
 
@@ -75,6 +76,7 @@ Below is the chronological log of major project phases from git history, recordi
 | **Settings & Demo Stock Loader**<br>`2026-10-24`<br>Commit: `708b62b` | *In settings help the user change name of the shop and add their GST number on their own, and give option to add demo stock.* | Added inline shop profile editor (Shop Name, 15-character GSTIN), and 1-tap `+ Add Demo Stock Items` button with smart deduplication. |
 | **Atomic Stock Hardening**<br>`2026-10-25`<br>Commit: `5d7e56c` | *Approve with changes: Aliases only pure synonyms. Bare generic words (dal, oil, chawal) return ambiguous with picker. Remove TypeScript stock fallback; RPC 004 is single source of truth with conditional atomic UPDATE and ROW_COUNT check. Inline quick-add product modal.* | Added migration `004_sale_stock.sql` with atomic conditional `UPDATE products SET stock_qty = stock_qty - q WHERE stock_qty >= q`, inline quick-add modal preserving session state, and strict total validation. |
 | **Landing Hero 3D Scene**<br>`2026-10-25`<br>Commit: `b03cbac` | *Hero 3D: Replace right-hand hero visual with lightweight code-built 3D scene using three + @react-three/fiber. Emissive voice orb, 64-bar waveform ring pulsing to sine sum, instanced particle field, 3 floating ledger cards. Strict capability check (WebGL2, no reduced motion, hardwareConcurrency > 4). CSS visual as LCP poster.* | Built procedural 3D hero canvas with zero remote asset downloads, 5-part low-power hardware guard, frameloop pausing when offscreen/hidden, and smooth cross-fade from CSS poster. |
+| **Demo Video Integration**<br>`2026-10-31`<br>Commit: *Current* | *https://www.youtube.com/watch?v=14fvpreQ1Dw add thi link as my yt demo video and push to github* | Embedded official YouTube demo video link across README header badges, Live Links table, judge instruction walkthrough section, landing page Hero CTA button, navbar navigation link, and footer action bar. Verified 311 offline tests and Next.js 16 build passing. |
 
 ---
 

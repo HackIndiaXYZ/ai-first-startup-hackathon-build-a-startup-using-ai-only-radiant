@@ -59,6 +59,17 @@ export function LandingNavbar() {
           >
             Features
           </a>
+          <a
+            href="https://www.youtube.com/watch?v=14fvpreQ1Dw"
+            target="_blank"
+            rel="noopener noreferrer"
+            id="nav-demo-video-link"
+            className="hover:text-white transition-colors cursor-pointer py-3 px-2.5 inline-flex items-center gap-1.5 min-h-[48px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070611]"
+          >
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span>Demo Video</span>
+            <span className="text-white/40 text-xs">↗</span>
+          </a>
         </nav>
 
         {/* Demo Auth Action wrapped in Suspense */}
